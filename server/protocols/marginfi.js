@@ -14,7 +14,7 @@
  */
 
 import { BorshAccountsCoder } from '@coral-xyz/anchor';
-import { MarginfiClient, getConfig, MarginRequirementType } from '@mrgnlabs/marginfi-client-v2';
+import { MarginfiClient, getConfig } from '@mrgnlabs/marginfi-client-v2';
 import { Keypair } from '@solana/web3.js';
 import { connection } from '../rpc.js';
 
@@ -139,17 +139,13 @@ export async function getMarginFiPositions(walletAddress) {
   if (!accounts.length) return [];
 
   return accounts.map((acc) => {
-    const { assets, liabilities } = acc.computeHealthComponents(MarginRequirementType.Maintenance);
-    const collateralUsd = assets.toNumber();
-    const borrowUsd = liabilities.toNumber();
-    const healthFactor = liabilities.isZero() ? null : assets.div(liabilities).toNumber();
-    const riskLevel = classifyRisk(healthFactor);
-
     const balances = acc.activeBalances.map((b) => {
       const bank = client.getBankByPk(b.bankPk);
       const oracle = client.getOraclePriceByBank(bank?.address);
       const price = parseFloat(oracle?.priceRealtime?.price ?? '0');
       const qty = b.computeQuantityUi(bank);
+      const assetWeightMaint = bank?.config?.assetWeightMaint?.toNumber() ?? 1;
+      const liabWeightMaint  = bank?.config?.liabilityWeightMaint?.toNumber() ?? 1;
       return {
         token: bank?.tokenSymbol ?? 'UNKNOWN',
         mint: bank?.mint.toString() ?? '',
@@ -158,8 +154,20 @@ export async function getMarginFiPositions(walletAddress) {
         priceUsd: price,
         assetUsd: qty.assets.toNumber() * price,
         liabilityUsd: qty.liabilities.toNumber() * price,
+        // weighted values used for health factor (maintenance requirement)
+        weightedAssetUsd: qty.assets.toNumber() * price * assetWeightMaint,
+        weightedLiabUsd:  qty.liabilities.toNumber() * price * liabWeightMaint,
       };
     });
+
+    // Health factor = weighted assets / weighted liabilities (maintenance basis)
+    // This matches MarginFi's liquidation threshold calculation.
+    const weightedAssets = balances.reduce((s, b) => s + b.weightedAssetUsd, 0);
+    const weightedLiabs  = balances.reduce((s, b) => s + b.weightedLiabUsd, 0);
+    const collateralUsd  = balances.reduce((s, b) => s + b.assetUsd, 0);
+    const borrowUsd      = balances.reduce((s, b) => s + b.liabilityUsd, 0);
+    const healthFactor   = weightedLiabs === 0 ? null : weightedAssets / weightedLiabs;
+    const riskLevel      = classifyRisk(healthFactor);
 
     return {
       protocol: 'marginfi',
