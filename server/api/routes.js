@@ -162,7 +162,6 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
   const totalBorrowUsd     = positions.reduce((sum, p) => sum + (p.borrowUsd ?? 0), 0);
   const activeHfs          = positions.map((p) => p.healthFactor).filter((hf) => hf !== null);
   const worstHealthFactor  = activeHfs.length ? Math.min(...activeHfs) : null;
-
   res.json({
     positions,
     totalCollateralUsd,

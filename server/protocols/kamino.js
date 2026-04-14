@@ -58,17 +58,23 @@ function sfToUsd(sf) {
   return parseFloat(sf || '0') / SF_SCALE;
 }
 
+function isSolCorrelated(token) {
+  const s = token.toUpperCase();
+  return s === 'SOL' || s === 'WSOL' || s.endsWith('SOL');
+}
+
 function classifyRisk(hf) {
   if (hf === null) return 'SAFE';
-  if (hf >= 2.0)   return 'SAFE';
-  if (hf >= 1.5)   return 'WARNING';
-  if (hf >= 1.2)   return 'HIGH';
+  if (hf >= 2.0) return 'SAFE';
+  if (hf >= 1.5) return 'WARNING';
+  if (hf >= 1.2) return 'HIGH';
   return 'CRITICAL';
 }
 
 function riskContext(positionType, healthFactor) {
   const hf = healthFactor?.toFixed(2) ?? '∞';
   switch (positionType) {
+    case 'lst_loop':          return `SOL/LST loop (HF ${hf}). Both sides are SOL-correlated — real risk is depeg, not SOL price movement.`;
     case 'stablecoin_loop':   return `Stablecoin loop (HF ${hf}). Risk is interest-driven — borrow interest slowly erodes the buffer.`;
     case 'volatile_collateral': return `Volatile collateral (HF ${hf}). A drop in collateral value can trigger liquidation quickly.`;
     case 'volatile_borrow':   return `Volatile borrow (HF ${hf}). If the borrowed token pumps, liabilities grow and HF drops.`;
@@ -79,6 +85,11 @@ function riskContext(positionType, healthFactor) {
 const STABLECOIN_SYMBOLS = new Set(['USDC', 'USDT', 'USDH', 'USDS', 'UXD', 'UST', 'DAI', 'PYUSD', 'USDe', 'EUSD']);
 
 function classifyPositionType(deposits, borrows) {
+  // LST loop: both sides SOL-correlated
+  if (deposits.every(d => isSolCorrelated(d.token)) &&
+      borrows.every(b => isSolCorrelated(b.token)) &&
+      borrows.length > 0) return 'lst_loop';
+
   const collStable = deposits.every((d) => STABLECOIN_SYMBOLS.has(d.token));
   const borrStable  = borrows.every((b) => STABLECOIN_SYMBOLS.has(b.token));
   const collVol = deposits.some((d) => !STABLECOIN_SYMBOLS.has(d.token));

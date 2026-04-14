@@ -167,8 +167,8 @@ export async function getMarginFiPositions(walletAddress) {
     const collateralUsd  = balances.reduce((s, b) => s + b.assetUsd, 0);
     const borrowUsd      = balances.reduce((s, b) => s + b.liabilityUsd, 0);
     const healthFactor   = weightedLiabs === 0 ? null : weightedAssets / weightedLiabs;
-    const riskLevel      = classifyRisk(healthFactor);
     const positionType   = classifyPositionType(balances);
+    const riskLevel      = classifyRisk(healthFactor);
 
     return {
       protocol: 'marginfi',
@@ -196,15 +196,20 @@ const STABLECOIN_MINTS = new Set([
   'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', // BONK (excluded — volatile)
 ]);
 
+// SOL-correlated: native SOL, wSOL, and any liquid staking token (symbol ends in SOL)
+function isSolCorrelated(token) {
+  const s = token.toUpperCase();
+  return s === 'SOL' || s === 'WSOL' || s.endsWith('SOL');
+}
+
 /**
  * Classifies a position by what types of assets are involved.
  *
- * stablecoin_loop  — both collateral and borrows are stablecoins.
- *                    Risk is slow/interest-driven, not price-driven.
- * volatile_collateral — collateral contains volatile tokens (SOL, meme coins).
- *                       Risk is fast/price-driven.
- * volatile_borrow  — borrowing volatile tokens against stable collateral.
- *                    Risk from borrow-side price pumps.
+ * lst_loop         — both sides are SOL-correlated (SOL, mSOL, jitoSOL, HyloSOL…)
+ *                    Real risk is depeg, not SOL price movement.
+ * stablecoin_loop  — both sides are stablecoins. Risk is interest-driven.
+ * volatile_collateral — volatile collateral, stable borrow. Price-driven risk.
+ * volatile_borrow  — stable collateral, volatile borrow. Pump-driven risk.
  * mixed            — both sides have volatile exposure.
  */
 function classifyPositionType(balances) {
@@ -213,8 +218,13 @@ function classifyPositionType(balances) {
 
   if (collateralTokens.length === 0 && borrowTokens.length === 0) return 'empty';
 
-  const collateralAllStable = collateralTokens.every(b => STABLECOIN_MINTS.has(b.mint));
-  const borrowAllStable     = borrowTokens.every(b => STABLECOIN_MINTS.has(b.mint));
+  // LST loop check first — takes priority over generic volatile classification
+  const collateralAllSolLst = collateralTokens.every(b => isSolCorrelated(b.token));
+  const borrowAllSolLst     = borrowTokens.every(b => isSolCorrelated(b.token));
+  if (collateralAllSolLst && borrowAllSolLst && borrowTokens.length > 0) return 'lst_loop';
+
+  const collateralAllStable   = collateralTokens.every(b => STABLECOIN_MINTS.has(b.mint));
+  const borrowAllStable       = borrowTokens.every(b => STABLECOIN_MINTS.has(b.mint));
   const collateralHasVolatile = collateralTokens.some(b => !STABLECOIN_MINTS.has(b.mint));
   const borrowHasVolatile     = borrowTokens.some(b => !STABLECOIN_MINTS.has(b.mint));
 
@@ -231,6 +241,8 @@ function classifyPositionType(balances) {
 function riskContext(positionType, healthFactor) {
   const hf = healthFactor?.toFixed(2) ?? '∞';
   switch (positionType) {
+    case 'lst_loop':
+      return `SOL/LST loop (HF ${hf}). Both sides are SOL-correlated — real risk is depeg, not SOL price movement. A significant depeg event would be required to trigger liquidation at this health factor.`;
     case 'stablecoin_loop':
       return `Stablecoin loop (HF ${hf}). Risk is interest-driven — borrow interest slowly erodes the buffer. No sudden price risk unless a stablecoin depegs.`;
     case 'volatile_collateral':
@@ -246,8 +258,8 @@ function riskContext(positionType, healthFactor) {
 
 function classifyRisk(hf) {
   if (hf === null) return 'SAFE';
-  if (hf >= 2.0)   return 'SAFE';
-  if (hf >= 1.5)   return 'WARNING';
-  if (hf >= 1.2)   return 'HIGH';
+  if (hf >= 2.0) return 'SAFE';
+  if (hf >= 1.5) return 'WARNING';
+  if (hf >= 1.2) return 'HIGH';
   return 'CRITICAL';
 }
