@@ -17,7 +17,7 @@ export const bot = new Bot(config.telegramBotToken);
 bot.command('start', (ctx) => {
   upsertUser(String(ctx.from.id));
   ctx.reply(
-    '👋 Welcome to *CheetahFi* — real\\-time Solana lending alerts \\(early beta\\)\\.\n\n' +
+    '👋 Welcome to *Vrynn* — real\\-time Solana lending alerts \\(early beta\\)\\.\n\n' +
     'Commands:\n' +
     '/addwallet `<address>` — monitor a wallet\n' +
     '/wallets — list your watched wallets\n' +
@@ -109,7 +109,7 @@ export async function sendAlert({ walletAddress, protocol, riskLevel, healthFact
 
   const emoji = riskLevel === 'CRITICAL' ? '🚨' : riskLevel === 'HIGH' ? '⚠️' : 'ℹ️';
   const text =
-    `${emoji} *CheetahFi Alert*\n` +
+    `${emoji} *Vrynn Alert*\n` +
     `Protocol: ${escMd(protocol)}\n` +
     `Wallet: \`${escMd(walletAddress.slice(0, 8))}\\.\\.\\.\`\n` +
     `Health Factor: *${escMd(healthFactor?.toFixed(3) ?? 'N/A')}*\n` +

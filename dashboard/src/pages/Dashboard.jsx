@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
-import { useCheetah } from '../hooks/useCheetah'
+import { useVrynn } from '../hooks/useVrynn'
 import PositionCard from '../components/PositionCard'
 import RiskScore from '../components/RiskScore'
 import AlertHistory from '../components/AlertHistory'
@@ -12,7 +12,7 @@ const TABS = ['Positions', 'Alerts', 'Settings']
 
 export default function Dashboard() {
   const { publicKey } = useWallet()
-  const { portfolio, alerts, loading, error } = useCheetah()
+  const { portfolio, alerts, loading, error } = useVrynn()
   const [tab, setTab] = useState('Positions')
 
   const address = publicKey?.toBase58() ?? ''
@@ -23,7 +23,7 @@ export default function Dashboard() {
 
       {/* Header */}
       <header className="border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-        <h1 className="text-xl font-bold">CheetahFi 🐆</h1>
+        <h1 className="text-xl font-bold">Vrynn</h1>
         <div className="flex items-center gap-4">
           <span className="text-zinc-400 text-sm font-mono">{short}</span>
           <WalletMultiButton />

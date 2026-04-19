@@ -8,19 +8,19 @@ export default function Landing() {
   const navigate = useNavigate()
 
   function handleAuth(authData) {
-    localStorage.setItem('cheetahfi_auth', JSON.stringify(authData))
+    localStorage.setItem('vrynn_auth', JSON.stringify(authData))
     navigate('/dashboard')
   }
 
   useEffect(() => {
-    if (connected && localStorage.getItem('cheetahfi_auth')) {
+    if (connected && localStorage.getItem('vrynn_auth')) {
       navigate('/dashboard')
     }
   }, [connected])
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-6">
-      <h1 className="text-5xl font-bold text-white">CheetahFi 🐆</h1>
+      <h1 className="text-5xl font-bold text-white">Vrynn</h1>
       <p className="text-zinc-400 text-lg">Real-time Solana lending alerts</p>
       <ConnectWallet onAuth={handleAuth} />
     </div>

@@ -61,7 +61,7 @@ export default function TelegramLink() {
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-zinc-400 text-sm">
-            Send this command to <span className="text-white font-mono">@CheetahFiBot</span> on Telegram:
+            Send this command to <span className="text-white font-mono">@VrynnBot</span> on Telegram:
           </p>
           <div className="flex items-center gap-2 bg-black rounded-lg px-4 py-3">
             <span className="text-white font-mono text-lg tracking-widest flex-1">

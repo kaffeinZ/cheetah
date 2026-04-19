@@ -1,5 +1,5 @@
 /**
- * CheetahFi — X (Twitter) posting module.
+ * Vrynn — X (Twitter) posting module.
  *
  * Three posting modes:
  *   postTweet(text)      — post any text (used by admin endpoint + daily cron)
@@ -68,13 +68,13 @@ export async function postDailySummary() {
     .get()?.n ?? 0;
 
   const lines = [
-    `📊 CheetahFi Daily Update`,
+    `📊 Vrynn Daily Update`,
     ``,
     `• ${walletCount} wallet${walletCount !== 1 ? 's' : ''} monitored`,
     `• ${alertsToday} alert${alertsToday !== 1 ? 's' : ''} fired today${criticalToday > 0 ? ` (${criticalToday} critical 🚨)` : ''}`,
     `• Protocols: MarginFi, Kamino`,
     ``,
-    `Early beta — stay informed on your Solana positions 🐆`,
+    `Early beta — stay informed on your Solana positions.`,
   ];
 
   return postTweet(lines.join('\n'));

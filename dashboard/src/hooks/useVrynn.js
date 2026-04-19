@@ -3,7 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 
 const API = 'http://localhost:3001/api'
 
-export function useCheetah() {
+export function useVrynn() {
   const { publicKey } = useWallet()
   const [portfolio, setPortfolio] = useState(null)
   const [alerts, setAlerts]       = useState([])
