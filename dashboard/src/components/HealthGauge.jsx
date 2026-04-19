@@ -1,20 +1,39 @@
-export default function HealthGauge({ healthFactor }) {
+const RISK_COLOR = {
+  SAFE:     '#2ecc00',
+  WARNING:  '#00c8e0',
+  HIGH:     '#e06000',
+  CRITICAL: '#e0007a',
+}
+
+export default function HealthGauge({ healthFactor, riskLevel }) {
   if (healthFactor === null) return (
-    <span className="text-zinc-400 text-sm">No debt</span>
+    <span className="text-[#2ecc00] text-sm font-medium">No debt — fully safe</span>
   )
 
   const hf = parseFloat(healthFactor)
-  const color = hf >= 2.0 ? 'bg-green-500' : hf >= 1.5 ? 'bg-yellow-400' : 'bg-red-500'
   const width = Math.min(100, Math.max(0, (hf / 3.0) * 100)).toFixed(1)
+  const dangerPos = ((1.2 / 3.0) * 100).toFixed(1)
+  const color = RISK_COLOR[riskLevel] ?? '#00c8e0'
 
   return (
-    <div className="w-full">
-      <div className="flex justify-between text-xs text-zinc-400 mb-1">
-        <span>Health Factor</span>
-        <span className={hf < 1.5 ? 'text-red-400 font-bold' : 'text-white'}>{hf.toFixed(3)}</span>
+    <div className="w-full flex flex-col gap-2">
+      <div className="flex justify-between items-baseline">
+        <span className="text-zinc-400 text-xs uppercase tracking-wider">Health Factor</span>
+        <span className="text-xl font-bold" style={{ color }}>{hf.toFixed(3)}</span>
       </div>
-      <div className="w-full bg-zinc-800 rounded-full h-2">
-        <div className={`${color} h-2 rounded-full transition-all`} style={{ width: `${width}%` }} />
+      <div className="relative w-full bg-zinc-100 rounded-full h-3">
+        <div
+          className="h-3 rounded-full transition-all duration-500"
+          style={{ width: `${width}%`, background: `linear-gradient(90deg, ${color}80, ${color})`, boxShadow: `0 0 8px ${color}40` }}
+        />
+        <div
+          className="absolute top-0 h-3 w-0.5 bg-zinc-300"
+          style={{ left: `${dangerPos}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-zinc-300">
+        <span>Liquidation</span>
+        <span>Safe ≥ 2.0</span>
       </div>
     </div>
   )

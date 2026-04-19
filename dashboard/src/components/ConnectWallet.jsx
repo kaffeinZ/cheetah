@@ -11,6 +11,7 @@ export default function ConnectWallet({ onAuth, compact }) {
 
   useEffect(() => {
     if (!connected || !publicKey || !signMessage) return
+    if (localStorage.getItem('vrynn_auth')) return
 
     async function authenticate() {
       try {
