@@ -9,13 +9,13 @@ import { config } from './config.js';
 import {
   getAllTrackedWallets,
   savePosition,
-  getLastAnalysisHealthFactor,
   getLastAlert,
 } from './db.js';
 import { getMarginFiPositions } from './protocols/marginfi.js';
 import { getKaminoPositions } from './protocols/kamino.js';
 import { sendAlert } from './alerts.js';
 import { analyzeRisk } from './ai.js';
+import { buildPriceTrendContext } from './priceMonitor.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -116,15 +116,13 @@ async function scanWallet(address) {
 
   if (!activePositions.length) return;
 
-  // AI analysis — only when health factor has shifted meaningfully
+  // AI analysis — only auto-fires on CRITICAL (HF < 1.2) as safety net
+  // Normal analysis is user-triggered via /api/analyze (4/day free)
   let aiResult = null;
-  const needsAi = activePositions.some((pos) => {
-    const lastHf = getLastAnalysisHealthFactor(address, pos.protocol);
-    return significantChange(pos.healthFactor, lastHf);
-  });
-
-  if (needsAi) {
-    aiResult = await analyzeRisk(address, activePositions);
+  const isCritical = activePositions.some(p => p.riskLevel === 'CRITICAL');
+  if (isCritical) {
+    const priceTrendContext = await buildPriceTrendContext(activePositions).catch(() => null);
+    aiResult = await analyzeRisk(address, activePositions, priceTrendContext);
   }
 
   // Telegram alerts for HIGH / CRITICAL positions

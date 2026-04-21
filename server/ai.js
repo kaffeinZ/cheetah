@@ -13,7 +13,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 
-function buildPrompt(walletAddress, positions) {
+function buildPrompt(walletAddress, positions, priceTrendContext = null) {
   const positionLines = positions.map((p) => {
     const hf = p.healthFactor != null ? p.healthFactor.toFixed(3) : 'N/A (no debt)';
     const balanceLines = p.balances
@@ -37,6 +37,7 @@ function buildPrompt(walletAddress, positions) {
     `Current positions:\n${positionLines}\n\n` +
     `Task: Analyse the liquidation risk across these positions.\n` +
     `CRITICAL RULE: if position_type is "lst_loop", collateral and debt move together with SOL price. SOL price dropping does NOT affect the health factor. The ONLY real risk is a depeg between the two tokens. NEVER say "if SOL falls" for lst_loop positions — it is factually wrong and misleading. Only discuss depeg risk.\n` +
+    `${priceTrendContext ? `Recent price trends (last 6h):\n${priceTrendContext}\nUse these trends to estimate time-to-liquidation if the trend continues. Be specific: "at this rate, liquidation could occur in approximately X hours."\n` : ''}` +
     `Respond in this exact format — nothing else:\n` +
     `RISK_LEVEL: <LOW|MEDIUM|HIGH|CRITICAL>\n` +
     `ANALYSIS: <2-3 sentences explaining the risk and what the user should do>`
@@ -61,10 +62,10 @@ function parseResponse(text) {
  * Analyse positions for a wallet and persist the result.
  * Returns { riskLevel, analysis } or null on failure.
  */
-export async function analyzeRisk(walletAddress, positions) {
+export async function analyzeRisk(walletAddress, positions, priceTrendContext = null) {
   if (!positions.length) return null;
 
-  const prompt = buildPrompt(walletAddress, positions);
+  const prompt = buildPrompt(walletAddress, positions, priceTrendContext);
 
   let responseText;
   try {

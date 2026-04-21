@@ -1,24 +1,24 @@
 import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import bs58 from 'bs58'
 
 const API = 'https://vrynn.xyz/api'
 
 export default function TelegramLink() {
-  const { publicKey, signMessage } = useWallet()
+  const { publicKey } = useWallet()
   const [code,    setCode]    = useState(null)
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
   const [copied,  setCopied]  = useState(false)
 
   async function handleGenerate() {
-    if (!publicKey || !signMessage) return
+    if (!publicKey) return
     setLoading(true)
     setError(null)
     setCode(null)
     try {
-      const { message } = await fetch(`${API}/auth/message`).then(r => r.json())
-      const signature   = bs58.encode(await signMessage(new TextEncoder().encode(message)))
+      const auth      = JSON.parse(localStorage.getItem('vrynn_auth') || '{}')
+      const signature = auth.signature
+      if (!signature) throw new Error('Session expired — please reconnect your wallet')
       const res  = await fetch(`${API}/telegram/link`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },

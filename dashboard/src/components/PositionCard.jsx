@@ -67,7 +67,7 @@ export default function PositionCard({ position }) {
       </div>
 
       {/* Health gauge */}
-      <HealthGauge healthFactor={healthFactor} riskLevel={riskLevel} />
+      <HealthGauge healthFactor={healthFactor} riskLevel={riskLevel} positionType={positionType} />
 
       {/* Liquidation info */}
       {info && riskLevel !== 'SAFE' && (

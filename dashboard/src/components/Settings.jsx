@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { useWallet } from '@solana/wallet-adapter-react'
-import bs58 from 'bs58'
 
 const API = 'https://vrynn.xyz/api'
 
 export default function Settings({ settings, onSaved }) {
-  const { publicKey, signMessage } = useWallet()
+  const { publicKey } = useWallet()
   const [hfWarning,  setHfWarning]  = useState(settings?.hf_warning  ?? 1.5)
   const [hfCritical, setHfCritical] = useState(settings?.hf_critical ?? 1.2)
   const [alerts,     setAlerts]     = useState(settings?.alerts_enabled ?? 1)
@@ -14,13 +13,14 @@ export default function Settings({ settings, onSaved }) {
   const [saved,      setSaved]      = useState(false)
 
   async function handleSave() {
-    if (!publicKey || !signMessage) return
+    if (!publicKey) return
     setSaving(true)
     setError(null)
     setSaved(false)
     try {
-      const { message } = await fetch(`${API}/auth/message`).then(r => r.json())
-      const signature   = bs58.encode(await signMessage(new TextEncoder().encode(message)))
+      const auth      = JSON.parse(localStorage.getItem('vrynn_auth') || '{}')
+      const signature = auth.signature
+      if (!signature) throw new Error('Session expired — please reconnect your wallet')
       const res  = await fetch(`${API}/settings`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,16 +85,19 @@ export default function Settings({ settings, onSaved }) {
       </div>
 
       {error && <p className="text-[#e0007a] text-sm">{error}</p>}
-      {saved  && <p className="text-[#2ecc00] text-sm font-medium">Settings saved.</p>}
 
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="py-2.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
-        style={{ background: 'linear-gradient(90deg, #00c8e0, #7000e0)', boxShadow: '0 4px 16px rgba(0,200,224,0.3)' }}
-      >
-        {saving ? 'Signing...' : 'Save Settings'}
-      </button>
+      <div className="flex items-center justify-between">
+        {saved  && <p className="text-[#2ecc00] text-xs font-medium">Saved ✓</p>}
+        {!saved && <span />}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-5 py-2 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50"
+          style={{ background: 'linear-gradient(90deg, #00c8e0, #7000e0)', boxShadow: '0 2px 10px rgba(0,200,224,0.25)' }}
+        >
+          {saving ? 'Signing...' : 'Save'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -72,6 +72,12 @@ db.exec(`
     wallet_address TEXT    NOT NULL,
     expires_at     INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS ai_usage (
+    wallet_address TEXT    PRIMARY KEY,
+    calls_today    INTEGER NOT NULL DEFAULT 0,
+    reset_date     TEXT    NOT NULL DEFAULT (date('now'))
+  );
 `);
 
 // ── users ──────────────────────────────────────────────────────────────────
@@ -192,6 +198,32 @@ export function upsertWalletSettings(walletAddress, { hfWarning, hfCritical, ale
       alerts_enabled = excluded.alerts_enabled,
       updated_at     = unixepoch()
   `).run(walletAddress, hfWarning, hfCritical, alertsEnabled ? 1 : 0);
+}
+
+// ── ai_usage ───────────────────────────────────────────────────────────────
+const FREE_AI_LIMIT = 4;
+
+export function getAiUsage(walletAddress) {
+  const today = new Date().toISOString().slice(0, 10);
+  const row = db.prepare(`SELECT * FROM ai_usage WHERE wallet_address = ?`).get(walletAddress);
+  if (!row || row.reset_date !== today) {
+    db.prepare(`
+      INSERT INTO ai_usage(wallet_address, calls_today, reset_date) VALUES(?, 0, ?)
+      ON CONFLICT(wallet_address) DO UPDATE SET calls_today = 0, reset_date = excluded.reset_date
+    `).run(walletAddress, today);
+    return { calls_today: 0, limit: FREE_AI_LIMIT, remaining: FREE_AI_LIMIT };
+  }
+  return { calls_today: row.calls_today, limit: FREE_AI_LIMIT, remaining: Math.max(0, FREE_AI_LIMIT - row.calls_today) };
+}
+
+export function incrementAiUsage(walletAddress) {
+  const today = new Date().toISOString().slice(0, 10);
+  db.prepare(`
+    INSERT INTO ai_usage(wallet_address, calls_today, reset_date) VALUES(?, 1, ?)
+    ON CONFLICT(wallet_address) DO UPDATE SET
+      calls_today = CASE WHEN reset_date = excluded.reset_date THEN calls_today + 1 ELSE 1 END,
+      reset_date  = excluded.reset_date
+  `).run(walletAddress, today);
 }
 
 // ── telegram_link_codes ────────────────────────────────────────────────────

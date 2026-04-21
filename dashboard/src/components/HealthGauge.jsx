@@ -5,7 +5,15 @@ const RISK_COLOR = {
   CRITICAL: '#e0007a',
 }
 
-export default function HealthGauge({ healthFactor, riskLevel }) {
+const SAFE_LABEL = {
+  lst_loop:            'Depeg risk only',
+  stablecoin_loop:     'Interest risk only',
+  volatile_collateral: 'Safe ≥ 2.0',
+  volatile_borrow:     'Safe ≥ 2.0',
+  mixed:               'Safe ≥ 2.0',
+}
+
+export default function HealthGauge({ healthFactor, riskLevel, positionType }) {
   if (healthFactor === null) return (
     <span className="text-[#2ecc00] text-sm font-medium">No debt — fully safe</span>
   )
@@ -33,7 +41,7 @@ export default function HealthGauge({ healthFactor, riskLevel }) {
       </div>
       <div className="flex justify-between text-xs text-zinc-300">
         <span>Liquidation</span>
-        <span>Safe ≥ 2.0</span>
+        <span>{SAFE_LABEL[positionType] ?? 'Safe ≥ 2.0'}</span>
       </div>
     </div>
   )

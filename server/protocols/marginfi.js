@@ -168,7 +168,7 @@ export async function getMarginFiPositions(walletAddress) {
     const borrowUsd      = balances.reduce((s, b) => s + b.liabilityUsd, 0);
     const healthFactor   = weightedLiabs === 0 ? null : weightedAssets / weightedLiabs;
     const positionType   = classifyPositionType(balances);
-    const riskLevel      = classifyRisk(healthFactor);
+    const riskLevel      = classifyRisk(healthFactor, positionType);
 
     return {
       protocol: 'marginfi',
@@ -256,10 +256,22 @@ function riskContext(positionType, healthFactor) {
   }
 }
 
-function classifyRisk(hf) {
+const POSITION_TYPE_WEIGHT = {
+  lst_loop:            0.2,
+  stablecoin_loop:     0.15,
+  deposit_only:        0.0,
+  volatile_collateral: 1.0,
+  volatile_borrow:     1.0,
+  mixed:               1.0,
+};
+
+function classifyRisk(hf, positionType = 'mixed') {
   if (hf === null) return 'SAFE';
-  if (hf >= 2.0) return 'SAFE';
-  if (hf >= 1.5) return 'WARNING';
-  if (hf >= 1.2) return 'HIGH';
+  const raw    = Math.max(0, Math.min(100, (3.0 - hf) / 2.0 * 100));
+  const weight = POSITION_TYPE_WEIGHT[positionType] ?? 1.0;
+  const score  = raw * weight;
+  if (score < 25) return 'SAFE';
+  if (score < 45) return 'WARNING';
+  if (score < 65) return 'HIGH';
   return 'CRITICAL';
 }

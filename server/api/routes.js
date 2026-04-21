@@ -13,6 +13,8 @@ import {
   getWalletSettings,
   upsertWalletSettings,
   createLinkCode,
+  getAiUsage,
+  incrementAiUsage,
 } from '../db.js';
 
 const router = Router();
@@ -113,10 +115,27 @@ router.get('/positions/:walletAddress', async (req, res) => {
 // ── Portfolio overview ─────────────────────────────────────────────────────
 // GET /api/portfolio/:walletAddress
 // Aggregates live positions across all protocols into a single risk snapshot.
-function computeRiskScore(worstHf) {
-  if (worstHf === null) return 0; // no debt
-  // Linear: HF 3.0 → score 0, HF 1.0 → score 100
-  return Math.max(0, Math.min(100, Math.round((3.0 - worstHf) / 2.0 * 100)));
+const POSITION_TYPE_WEIGHT = {
+  lst_loop:           0.2,  // SOL/LST both move together — depeg risk only
+  stablecoin_loop:    0.15, // interest-rate risk only
+  deposit_only:       0.0,  // no debt, no liquidation risk
+  volatile_collateral: 1.0,
+  volatile_borrow:    1.0,
+  mixed:              1.0,
+};
+
+function computeRiskScore(positions) {
+  const activePositions = positions.filter(p => p.healthFactor !== null);
+  if (!activePositions.length) return 0;
+
+  // Score each position individually then take the worst adjusted score
+  const scores = activePositions.map(p => {
+    const raw    = Math.max(0, Math.min(100, Math.round((3.0 - p.healthFactor) / 2.0 * 100)));
+    const weight = POSITION_TYPE_WEIGHT[p.positionType] ?? 1.0;
+    return Math.round(raw * weight);
+  });
+
+  return Math.max(...scores);
 }
 
 router.get('/portfolio/:walletAddress', async (req, res) => {
@@ -167,7 +186,7 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
     totalCollateralUsd,
     totalBorrowUsd,
     worstHealthFactor,
-    riskScore:        computeRiskScore(worstHealthFactor),
+    riskScore:        computeRiskScore(positions),
     latestAiAnalysis: getLatestAiAnalysis(walletAddress),
     settings:         getWalletSettings(walletAddress),
   });
@@ -239,6 +258,66 @@ router.get('/alerts/:walletAddress', (req, res) => {
 // GET /api/risk/:walletAddress  →  latest AI analysis per protocol
 router.get('/risk/:walletAddress', (req, res) => {
   res.json(getLatestAiAnalysis(req.params.walletAddress));
+});
+
+// POST /api/analyze  body: { address, signature }
+// Manual on-demand AI analysis — free tier: 4/day
+router.post('/analyze', async (req, res) => {
+  const { address, signature } = req.body ?? {};
+
+  if (!address || !signature) {
+    return res.status(400).json({ error: 'address and signature are required' });
+  }
+
+  try { new PublicKey(address); } catch {
+    return res.status(400).json({ error: 'invalid Solana address' });
+  }
+
+  if (!verifyWalletSignature(address, signature)) {
+    return res.status(401).json({ error: 'signature verification failed' });
+  }
+
+  const usage = getAiUsage(address);
+  if (usage.remaining <= 0) {
+    return res.status(429).json({
+      error: 'Daily AI analysis limit reached (4/day on free plan). Resets at midnight UTC.',
+      usage,
+    });
+  }
+
+  try {
+    const { getMarginFiPositions } = await import('../protocols/marginfi.js');
+    const { getKaminoPositions }   = await import('../protocols/kamino.js');
+    const { analyzeRisk }          = await import('../ai.js');
+    const { buildPriceTrendContext } = await import('../priceMonitor.js');
+
+    const [marginfi, kamino] = await Promise.allSettled([
+      getMarginFiPositions(address),
+      getKaminoPositions(address),
+    ]);
+
+    const positions = [
+      ...(marginfi.status === 'fulfilled' ? marginfi.value : []),
+      ...(kamino.status  === 'fulfilled' ? kamino.value  : []),
+    ].filter(p => p.healthFactor !== null);
+
+    if (!positions.length) {
+      return res.status(400).json({ error: 'No active lending positions found' });
+    }
+
+    const priceTrendContext = await buildPriceTrendContext(positions).catch(() => null);
+    const result = await analyzeRisk(address, positions, priceTrendContext);
+
+    if (!result) return res.status(500).json({ error: 'AI analysis failed' });
+
+    incrementAiUsage(address);
+    const updatedUsage = getAiUsage(address);
+
+    res.json({ ok: true, ...result, usage: updatedUsage });
+  } catch (err) {
+    console.error('[analyze]', err.message);
+    res.status(500).json({ error: 'Analysis failed' });
+  }
 });
 
 // ── Admin: manual tweet ────────────────────────────────────────────────────

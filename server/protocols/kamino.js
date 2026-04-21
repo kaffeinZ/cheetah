@@ -14,13 +14,23 @@ const SF_SCALE     = 1e18;            // marketValueSf denominator
 let _markets        = null;
 let _marketsAt      = 0;
 // reservePubkey → { token, mint }  per marketPubkey
-const _reserveCache = new Map();
-const _reserveCacheAt = new Map();
+const _reserveCache    = new Map();
+const _reserveCacheAt  = new Map();
+// last known good obligations per market
+const _obligationCache    = new Map();
+const _obligationCacheAt  = new Map();
+const OBLIGATION_STALE_MS = 5 * 60 * 1000; // use stale data up to 5 min
 
-async function fetchJson(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Kamino API ${res.status}: ${url}`);
-  return res.json();
+async function fetchJson(url, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch(url);
+    if (res.ok) return res.json();
+    if (res.status === 502 && attempt < retries) {
+      await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      continue;
+    }
+    throw new Error(`Kamino API ${res.status}: ${url}`);
+  }
 }
 
 async function getMarkets() {
@@ -63,11 +73,23 @@ function isSolCorrelated(token) {
   return s === 'SOL' || s === 'WSOL' || s.endsWith('SOL');
 }
 
-function classifyRisk(hf) {
+const POSITION_TYPE_WEIGHT = {
+  lst_loop:            0.2,
+  stablecoin_loop:     0.15,
+  deposit_only:        0.0,
+  volatile_collateral: 1.0,
+  volatile_borrow:     1.0,
+  mixed:               1.0,
+};
+
+function classifyRisk(hf, positionType = 'mixed') {
   if (hf === null) return 'SAFE';
-  if (hf >= 2.0) return 'SAFE';
-  if (hf >= 1.5) return 'WARNING';
-  if (hf >= 1.2) return 'HIGH';
+  const raw    = Math.max(0, Math.min(100, (3.0 - hf) / 2.0 * 100));
+  const weight = POSITION_TYPE_WEIGHT[positionType] ?? 1.0;
+  const score  = raw * weight;
+  if (score < 25) return 'SAFE';
+  if (score < 45) return 'WARNING';
+  if (score < 65) return 'HIGH';
   return 'CRITICAL';
 }
 
@@ -155,7 +177,7 @@ function parseObligation(obligation, marketPubkey, reserveMap) {
   const positionType  = borrowBalances.length
     ? classifyPositionType(depositBalances, borrowBalances)
     : 'deposit_only';
-  const riskLevel     = classifyRisk(healthFactor);
+  const riskLevel     = classifyRisk(healthFactor, positionType);
 
   return {
     protocol:       'kamino',
@@ -184,13 +206,24 @@ export async function getKaminoPositions(walletAddress) {
   await Promise.all(
     markets.map(async (marketPubkey) => {
       let obligations;
+      const cacheKey = `${marketPubkey}:${walletAddress}`;
       try {
         obligations = await fetchJson(
           `${KAMINO_API}/kamino-market/${marketPubkey}/users/${walletAddress}/obligations`
         );
+        // store successful result
+        _obligationCache.set(cacheKey, obligations);
+        _obligationCacheAt.set(cacheKey, Date.now());
       } catch (err) {
-        console.error(`[kamino] market ${marketPubkey.slice(0, 8)}… fetch failed: ${err.message}`);
-        return;
+        const cachedAt = _obligationCacheAt.get(cacheKey) ?? 0;
+        const stale    = _obligationCache.get(cacheKey);
+        if (stale && Date.now() - cachedAt < OBLIGATION_STALE_MS) {
+          console.warn(`[kamino] market ${marketPubkey.slice(0, 8)}… using cached data (${err.message})`);
+          obligations = stale;
+        } else {
+          console.error(`[kamino] market ${marketPubkey.slice(0, 8)}… fetch failed, no cache: ${err.message}`);
+          return;
+        }
       }
 
       if (!obligations?.length) return;

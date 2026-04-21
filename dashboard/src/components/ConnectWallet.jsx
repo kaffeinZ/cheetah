@@ -35,8 +35,8 @@ export default function ConnectWallet({ onAuth, compact }) {
         const data = await res.json()
         if (!res.ok) throw new Error(data.error)
 
-        // 4. pass auth result up to parent
-        onAuth({ address: publicKey.toBase58(), ...data })
+        // 4. pass auth result up to parent (include signature for reuse)
+        onAuth({ address: publicKey.toBase58(), signature: bs58.encode(signature), ...data })
       } catch (err) {
         setError(err.message)
       }

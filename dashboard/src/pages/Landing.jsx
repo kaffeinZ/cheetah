@@ -22,16 +22,27 @@ const PLANS = [
     price: '$0',
     period: 'forever',
     color: '#00c8e0',
-    features: ['1 wallet monitored', 'Telegram alerts', 'MarginFi + Kamino', '60s polling interval', 'AI risk analysis'],
+    features: ['1 wallet monitored', 'Telegram alerts', 'MarginFi + Kamino', '60s polling interval', '4 AI analyses per day'],
     cta: 'Get Started',
+    highlight: false,
+  },
+  {
+    name: 'Plus',
+    price: null,
+    period: null,
+    color: '#7000e0',
+    features: ['3 wallets monitored', 'All Free features', '30s polling interval', '10 AI analyses per day', 'More protocols'],
+    cta: 'Coming Soon',
+    highlight: true,
   },
   {
     name: 'Pro',
-    price: '$9',
-    period: 'per month',
+    price: null,
+    period: null,
     color: '#e0007a',
-    features: ['Unlimited wallets', 'Priority alerts', 'All protocols', '15s polling interval', 'Advanced AI analysis'],
+    features: ['Unlimited wallets', 'All Plus features', '15s polling interval', 'Unlimited AI analyses', 'Priority alerts'],
     cta: 'Coming Soon',
+    highlight: false,
   },
 ]
 
@@ -55,7 +66,10 @@ export default function Landing() {
 
       {/* Nav */}
       <nav className="border-b border-black/8 px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full">
-        <span className="text-2xl font-black gradient-text">Vrynn</span>
+        <div className="flex items-center gap-2">
+          <span className="text-3xl font-black gradient-text">Vrynn</span>
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#00c8e0]/15 text-[#00c8e0] border border-[#00c8e0]/30">Beta</span>
+        </div>
         <ConnectWallet onAuth={handleAuth} compact />
       </nav>
 
@@ -112,16 +126,26 @@ export default function Landing() {
       <section className="bg-zinc-50 py-20">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-3xl font-black text-center mb-12">Pricing</h2>
-          <div className="grid sm:grid-cols-2 gap-6 max-w-2xl mx-auto">
+          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {PLANS.map(p => (
-              <div key={p.name} className="card p-6 flex flex-col gap-4" style={{ borderTop: `4px solid ${p.color}` }}>
+              <div key={p.name} className={`card p-6 flex flex-col gap-4 relative ${p.highlight ? 'ring-2' : ''}`}
+                style={{ borderTop: `4px solid ${p.color}`, ...(p.highlight ? { ringColor: p.color } : {}) }}>
+                {p.highlight && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="text-xs font-bold px-3 py-1 rounded-full text-white" style={{ background: p.color }}>Most Popular</span>
+                  </div>
+                )}
                 <div>
                   <div className="text-zinc-400 text-sm mb-1 font-medium">{p.name}</div>
-                  <div className="text-4xl font-black text-zinc-900">
-                    {p.price} <span className="text-zinc-400 text-sm font-normal">/ {p.period}</span>
-                  </div>
+                  {p.price ? (
+                    <div className="text-4xl font-black text-zinc-900">
+                      {p.price} <span className="text-zinc-400 text-sm font-normal">/ {p.period}</span>
+                    </div>
+                  ) : (
+                    <div className="text-2xl font-black" style={{ color: p.color }}>Coming Soon</div>
+                  )}
                 </div>
-                <ul className="flex flex-col gap-2">
+                <ul className="flex flex-col gap-2 flex-1">
                   {p.features.map(f => (
                     <li key={f} className="text-zinc-600 text-sm flex items-center gap-2">
                       <span className="font-bold" style={{ color: p.color }}>✓</span> {f}
