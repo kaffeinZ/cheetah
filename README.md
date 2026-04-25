@@ -206,6 +206,24 @@ vrynn-protocol/
 
 ---
 
+## Roadmap
+
+| Status | Feature |
+|---|---|
+| ✅ | MarginFi lending monitoring |
+| ✅ | Kamino lending monitoring |
+| ✅ | Telegram alerts (HIGH / CRITICAL) |
+| ✅ | AI risk analysis — 4/day free |
+| ✅ | Health Factor history chart (24h / 7d) |
+| ✅ | Position-type aware risk scoring (LST loop, stablecoin loop, volatile) |
+| 🔜 | Liquidation price calculator + stress test slider |
+| 🔜 | Drift Protocol perp position monitoring |
+| 🔜 | Live token prices for positions |
+| 🔜 | Recent on-chain liquidations feed |
+| 🔜 | Demo mode — explore the dashboard without connecting a wallet |
+
+---
+
 ## License
 
 MIT
