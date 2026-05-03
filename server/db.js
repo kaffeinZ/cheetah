@@ -185,19 +185,20 @@ export function getLastAnalysisHealthFactor(walletAddress, protocol) {
 // ── wallet_settings ────────────────────────────────────────────────────────
 export function getWalletSettings(walletAddress) {
   return db.prepare(`SELECT * FROM wallet_settings WHERE wallet_address = ?`).get(walletAddress)
-    ?? { wallet_address: walletAddress, hf_warning: 1.5, hf_critical: 1.2, alerts_enabled: 1 };
+    ?? { wallet_address: walletAddress, hf_warning: 1.5, hf_critical: 1.2, alerts_enabled: 1, perp_alert_pct: 10 };
 }
 
-export function upsertWalletSettings(walletAddress, { hfWarning, hfCritical, alertsEnabled }) {
+export function upsertWalletSettings(walletAddress, { hfWarning, hfCritical, alertsEnabled, perpAlertPct }) {
   db.prepare(`
-    INSERT INTO wallet_settings(wallet_address, hf_warning, hf_critical, alerts_enabled)
-    VALUES(?, ?, ?, ?)
+    INSERT INTO wallet_settings(wallet_address, hf_warning, hf_critical, alerts_enabled, perp_alert_pct)
+    VALUES(?, ?, ?, ?, ?)
     ON CONFLICT(wallet_address) DO UPDATE SET
       hf_warning     = excluded.hf_warning,
       hf_critical    = excluded.hf_critical,
       alerts_enabled = excluded.alerts_enabled,
+      perp_alert_pct = excluded.perp_alert_pct,
       updated_at     = unixepoch()
-  `).run(walletAddress, hfWarning, hfCritical, alertsEnabled ? 1 : 0);
+  `).run(walletAddress, hfWarning, hfCritical, alertsEnabled ? 1 : 0, perpAlertPct ?? 10);
 }
 
 // ── ai_usage ───────────────────────────────────────────────────────────────

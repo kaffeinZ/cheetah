@@ -10,9 +10,11 @@ import {
   getAllTrackedWallets,
   savePosition,
   getLastAlert,
+  getWalletSettings,
 } from './db.js';
 import { getMarginFiPositions } from './protocols/marginfi.js';
 import { getKaminoPositions } from './protocols/kamino.js';
+import { getJupiterPositions } from './protocols/jupiter.js';
 import { sendAlert } from './alerts.js';
 import { analyzeRisk } from './ai.js';
 import { buildPriceTrendContext } from './priceMonitor.js';
@@ -38,8 +40,19 @@ function significantChange(currentHf, lastHf) {
   return Math.abs(currentHf - lastHf) > 0.1;
 }
 
-function shouldAlert(walletAddress, protocol, currentRiskLevel, currentHf) {
-  if (currentRiskLevel !== 'CRITICAL' && currentRiskLevel !== 'HIGH') return false;
+function shouldAlert(walletAddress, protocol, currentRiskLevel, currentHf, position, settings) {
+  const hfThreshold   = settings?.hf_warning  ?? 1.5;
+  const perpThreshold = settings?.perp_alert_pct ?? 10;
+
+  if (position?.positionType === 'perp') {
+    // Perps: alert when distance % is below user threshold, only if PnL negative or CRITICAL
+    const distancePct = position.distancePct ?? 100;
+    if (distancePct > perpThreshold) return false;
+    if (distancePct > 5 && (position.unrealizedPnl ?? 0) >= 0) return false;
+  } else {
+    // Lending: alert when HF drops below user-configured threshold
+    if (currentHf === null || currentHf >= hfThreshold) return false;
+  }
 
   const last = getLastAlert(walletAddress, protocol);
 
@@ -57,12 +70,36 @@ function shouldAlert(walletAddress, protocol, currentRiskLevel, currentHf) {
 }
 
 function buildAlertMessage(position, aiAnalysis) {
+  // Prefer the AI's natural-language analysis when available
+  if (aiAnalysis?.analysis) return aiAnalysis.analysis;
+
+  if (position.positionType === 'perp') {
+    const dist     = position.distancePct?.toFixed(1) ?? '?';
+    const liq      = position.liqPrice?.toFixed(2) ?? '?';
+    const current  = position.currentPrice?.toFixed(2) ?? '?';
+    const side     = position.side ?? '';
+    const token    = position.token ?? '';
+    const leverage = position.leverage ?? '?';
+    const pnl      = position.unrealizedPnl != null
+      ? `${position.unrealizedPnl >= 0 ? '+' : ''}$${position.unrealizedPnl.toFixed(2)}`
+      : 'N/A';
+
+    if (position.riskLevel === 'CRITICAL') {
+      return (
+        `CRITICAL: Your Jupiter ${side} ${token}-PERP ${leverage}x is ${dist}% from liquidation. ` +
+        `Current: $${current} → Liq: $${liq}. PnL: ${pnl}. Close or add collateral immediately.`
+      );
+    }
+    return (
+      `WARNING: Your Jupiter ${side} ${token}-PERP ${leverage}x is ${dist}% from liquidation. ` +
+      `Current: $${current} → Liq: $${liq}. PnL: ${pnl}. Monitor closely.`
+    );
+  }
+
+  // Lending position (MarginFi / Kamino)
   const hf         = position.healthFactor?.toFixed(3) ?? 'N/A';
   const collateral = position.collateralUsd?.toFixed(2) ?? '0';
   const borrow     = position.borrowUsd?.toFixed(2) ?? '0';
-
-  // Prefer the AI's natural-language analysis when available
-  if (aiAnalysis?.analysis) return aiAnalysis.analysis;
 
   if (position.riskLevel === 'CRITICAL') {
     return (
@@ -81,14 +118,16 @@ function buildAlertMessage(position, aiAnalysis) {
 // ── Per-wallet scan ───────────────────────────────────────────────────────
 
 async function scanWallet(address) {
-  const [marginfiPositions, kaminoPositions] = await Promise.allSettled([
+  const [marginfiPositions, kaminoPositions, jupiterPositions] = await Promise.allSettled([
     getMarginFiPositions(address),
     getKaminoPositions(address),
+    getJupiterPositions(address),
   ]);
 
   const positions = [
     ...(marginfiPositions.status === 'fulfilled' ? marginfiPositions.value : []),
     ...(kaminoPositions.status  === 'fulfilled' ? kaminoPositions.value  : []),
+    ...(jupiterPositions.status === 'fulfilled' ? jupiterPositions.value : []),
   ];
 
   if (marginfiPositions.status === 'rejected') {
@@ -96,6 +135,9 @@ async function scanWallet(address) {
   }
   if (kaminoPositions.status === 'rejected') {
     console.error(`[monitor] kamino failed for ${address.slice(0, 8)}…: ${kaminoPositions.reason?.message}`);
+  }
+  if (jupiterPositions.status === 'rejected') {
+    console.error(`[monitor] jupiter failed for ${address.slice(0, 8)}…: ${jupiterPositions.reason?.message}`);
   }
 
   if (!positions.length) return;
@@ -109,7 +151,7 @@ async function scanWallet(address) {
       protocol:      pos.protocol,
       collateralUsd: pos.collateralUsd,
       borrowUsd:     pos.borrowUsd,
-      healthFactor:  pos.healthFactor,
+      healthFactor:  (pos.borrowUsd > 0.01) ? pos.healthFactor : null,
       rawData:       pos,
     });
   }
@@ -125,9 +167,12 @@ async function scanWallet(address) {
     aiResult = await analyzeRisk(address, activePositions, priceTrendContext);
   }
 
+  const settings = getWalletSettings(address);
+  if (settings?.alerts_enabled === 0) return;
+
   // Telegram alerts for HIGH / CRITICAL positions
   for (const pos of activePositions) {
-    if (shouldAlert(address, pos.protocol, pos.riskLevel, pos.healthFactor)) {
+    if (shouldAlert(address, pos.protocol, pos.riskLevel, pos.healthFactor, pos, settings)) {
       const message = buildAlertMessage(pos, aiResult);
       await sendAlert({
         walletAddress: address,

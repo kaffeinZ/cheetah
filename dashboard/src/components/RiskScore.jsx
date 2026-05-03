@@ -24,7 +24,8 @@ export default function RiskScore({ score }) {
           <path
             d="M 8 60 A 54 54 0 0 1 112 60"
             fill="none"
-            stroke="#f0f0f0"
+            stroke="currentColor"
+            className="text-zinc-100 dark:text-zinc-800"
             strokeWidth="10"
             strokeLinecap="round"
           />
@@ -43,12 +44,12 @@ export default function RiskScore({ score }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-          <span className="text-3xl font-black text-zinc-900 leading-none">{score}</span>
+          <span className="text-3xl font-black text-zinc-900 dark:text-zinc-100 leading-none">{score}</span>
         </div>
       </div>
 
       <p className="text-sm font-bold uppercase tracking-wider" style={{ color }}>{label}</p>
-      <p className="text-zinc-300 text-xs">0 = no risk · 100 = liquidation imminent</p>
+      <p className="text-zinc-300 dark:text-zinc-600 text-xs">0 = no risk · 100 = liquidation imminent</p>
     </div>
   )
 }

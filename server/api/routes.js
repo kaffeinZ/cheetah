@@ -83,15 +83,18 @@ router.get('/positions/:walletAddress', async (req, res) => {
   try {
     const { getMarginFiPositions } = await import('../protocols/marginfi.js');
     const { getKaminoPositions }   = await import('../protocols/kamino.js');
+    const { getJupiterPositions }  = await import('../protocols/jupiter.js');
 
-    const [marginfi, kamino] = await Promise.allSettled([
+    const [marginfi, kamino, jupiter] = await Promise.allSettled([
       getMarginFiPositions(walletAddress),
       getKaminoPositions(walletAddress),
+      getJupiterPositions(walletAddress),
     ]);
 
     const positions = [
-      ...(marginfi.status === 'fulfilled' ? marginfi.value : []),
-      ...(kamino.status  === 'fulfilled' ? kamino.value  : []),
+      ...(marginfi.status  === 'fulfilled' ? marginfi.value  : []),
+      ...(kamino.status    === 'fulfilled' ? kamino.value    : []),
+      ...(jupiter.status   === 'fulfilled' ? jupiter.value   : []),
     ];
 
     for (const p of positions) {
@@ -100,7 +103,7 @@ router.get('/positions/:walletAddress', async (req, res) => {
         protocol:      p.protocol,
         collateralUsd: p.collateralUsd,
         borrowUsd:     p.borrowUsd,
-        healthFactor:  p.healthFactor,
+        healthFactor:  (p.borrowUsd > 0.01) ? p.healthFactor : null,
         rawData:       p,
       });
     }
@@ -149,15 +152,18 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
   try {
     const { getMarginFiPositions } = await import('../protocols/marginfi.js');
     const { getKaminoPositions }   = await import('../protocols/kamino.js');
+    const { getJupiterPositions }  = await import('../protocols/jupiter.js');
 
-    const [marginfi, kamino] = await Promise.allSettled([
+    const [marginfi, kamino, jupiter] = await Promise.allSettled([
       getMarginFiPositions(walletAddress),
       getKaminoPositions(walletAddress),
+      getJupiterPositions(walletAddress),
     ]);
 
     positions = [
-      ...(marginfi.status === 'fulfilled' ? marginfi.value : []),
-      ...(kamino.status  === 'fulfilled' ? kamino.value  : []),
+      ...(marginfi.status  === 'fulfilled' ? marginfi.value  : []),
+      ...(kamino.status    === 'fulfilled' ? kamino.value    : []),
+      ...(jupiter.status   === 'fulfilled' ? jupiter.value   : []),
     ];
 
     for (const p of positions) {
@@ -166,7 +172,7 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
         protocol:      p.protocol,
         collateralUsd: p.collateralUsd,
         borrowUsd:     p.borrowUsd,
-        healthFactor:  p.healthFactor,
+        healthFactor:  (p.borrowUsd > 0.01) ? p.healthFactor : null,
         rawData:       p,
       });
     }
@@ -195,7 +201,7 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
 // ── Per-wallet settings ────────────────────────────────────────────────────
 // POST /api/settings  body: { address, signature, hfWarning, hfCritical, alertsEnabled }
 router.post('/settings', (req, res) => {
-  const { address, signature, hfWarning, hfCritical, alertsEnabled } = req.body ?? {};
+  const { address, signature, hfWarning, hfCritical, alertsEnabled, perpAlertPct } = req.body ?? {};
 
   if (!address || !signature) {
     return res.status(400).json({ error: 'address and signature are required' });
@@ -220,6 +226,7 @@ router.post('/settings', (req, res) => {
     hfWarning:     warn,
     hfCritical:    crit,
     alertsEnabled: alertsEnabled !== false,
+    perpAlertPct:  parseFloat(perpAlertPct) || 10,
   });
 
   res.json({ ok: true, settings: getWalletSettings(address) });
@@ -288,21 +295,24 @@ router.post('/analyze', async (req, res) => {
   try {
     const { getMarginFiPositions } = await import('../protocols/marginfi.js');
     const { getKaminoPositions }   = await import('../protocols/kamino.js');
+    const { getJupiterPositions }  = await import('../protocols/jupiter.js');
     const { analyzeRisk }          = await import('../ai.js');
     const { buildPriceTrendContext } = await import('../priceMonitor.js');
 
-    const [marginfi, kamino] = await Promise.allSettled([
+    const [marginfi, kamino, jupiter] = await Promise.allSettled([
       getMarginFiPositions(address),
       getKaminoPositions(address),
+      getJupiterPositions(address),
     ]);
 
     const positions = [
-      ...(marginfi.status === 'fulfilled' ? marginfi.value : []),
-      ...(kamino.status  === 'fulfilled' ? kamino.value  : []),
+      ...(marginfi.status  === 'fulfilled' ? marginfi.value  : []),
+      ...(kamino.status    === 'fulfilled' ? kamino.value    : []),
+      ...(jupiter.status   === 'fulfilled' ? jupiter.value   : []),
     ].filter(p => p.healthFactor !== null);
 
     if (!positions.length) {
-      return res.status(400).json({ error: 'No active lending positions found' });
+      return res.status(400).json({ error: 'No active positions found' });
     }
 
     const priceTrendContext = await buildPriceTrendContext(positions).catch(() => null);
@@ -322,6 +332,9 @@ router.post('/analyze', async (req, res) => {
 
 // ── HF History ─────────────────────────────────────────────────────────────
 // GET /api/hf-history/:walletAddress?period=24h|7d
+// Returns { lending: [{t, hf}], perps: [{t, pct}] }
+// lending = worst HF across marginfi+kamino per minute bucket
+// perps   = closest to liq (lowest distancePct = hf*5) across jupiter positions
 router.get('/hf-history/:walletAddress', (req, res) => {
   const { walletAddress } = req.params;
   const period = req.query.period === '7d' ? 7 * 24 * 3600 : 24 * 3600;
@@ -335,13 +348,28 @@ router.get('/hf-history/:walletAddress', (req, res) => {
     ORDER BY recorded_at ASC
   `).all(walletAddress, period);
 
-  const byProtocol = {};
+  // Bucket by minute to merge multiple positions at same timestamp
+  const lendingBuckets = {};
+  const perpBuckets    = {};
+
   for (const row of rows) {
-    if (!byProtocol[row.protocol]) byProtocol[row.protocol] = [];
-    byProtocol[row.protocol].push({ t: row.recorded_at, hf: row.health_factor });
+    const bucket = Math.floor(row.recorded_at / 60) * 60;
+    if (row.protocol === 'jupiter') {
+      const pct = row.health_factor * 5; // convert back to distancePct
+      if (!perpBuckets[bucket] || pct < perpBuckets[bucket]) {
+        perpBuckets[bucket] = pct; // keep worst (closest to liq)
+      }
+    } else {
+      if (!lendingBuckets[bucket] || row.health_factor < lendingBuckets[bucket]) {
+        lendingBuckets[bucket] = row.health_factor; // keep worst HF
+      }
+    }
   }
 
-  res.json(byProtocol);
+  res.json({
+    lending: Object.entries(lendingBuckets).map(([t, hf])  => ({ t: Number(t), hf })).sort((a,b) => a.t - b.t),
+    perps:   Object.entries(perpBuckets).map(([t, pct]) => ({ t: Number(t), pct })).sort((a,b) => a.t - b.t),
+  });
 });
 
 // ── Admin: manual tweet ────────────────────────────────────────────────────

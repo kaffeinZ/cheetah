@@ -12,6 +12,7 @@ function hfColor(hf) {
 
 function hfLabel(hf) {
   if (hf === null) return 'SAFE'
+  if (hf === 0)   return 'LIQUIDATED'
   if (hf >= 2.0)  return 'SAFE'
   if (hf >= 1.5)  return 'WARNING'
   if (hf >= 1.2)  return 'HIGH'
@@ -20,6 +21,16 @@ function hfLabel(hf) {
 
 function projectHf(pos, dropFraction) {
   if (pos.healthFactor === null) return null
+
+  // Perps: check if stressed price crosses liq price
+  if (pos.positionType === 'perp') {
+    if (!pos.currentPrice || !pos.liqPrice) return pos.healthFactor
+    const stressedPrice = pos.currentPrice * (1 - dropFraction)
+    if (stressedPrice <= pos.liqPrice) return 0
+    const newDistancePct = (stressedPrice - pos.liqPrice) / stressedPrice * 100
+    return newDistancePct / 5
+  }
+
   if (dropFraction === 0) return pos.healthFactor
   const { balances, positionType } = pos
   const hasTokenPrices = balances?.some(b => b.priceUsd > 0)
@@ -72,16 +83,18 @@ export default function LiquidationCalc({ positions }) {
         {activePositions.map((pos, i) => {
           const prices = liquidationPrices(pos)
           const projHf = projectHf(pos, dropFraction)
-          const buffer = pos.healthFactor ? ((1 - 1 / pos.healthFactor) * 100).toFixed(1) : null
+          const buffer = pos.positionType === 'perp'
+            ? pos.distancePct?.toFixed(1)
+            : pos.healthFactor ? ((1 - 1 / pos.healthFactor) * 100).toFixed(1) : null
           const color  = hfColor(projHf)
           const label  = hfLabel(projHf)
           return (
-            <div key={i} className="bg-zinc-50 rounded-xl p-4 flex flex-col gap-3 border border-zinc-100">
+            <div key={i} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 flex flex-col gap-3 border border-zinc-100 dark:border-zinc-700">
               <div className="flex items-center justify-between">
-                <span className="font-semibold capitalize text-zinc-800">{pos.protocol}</span>
+                <span className="font-semibold capitalize text-zinc-800 dark:text-zinc-200">{pos.protocol}</span>
                 {buffer && (
-                  <span className="text-xs text-zinc-500">
-                    absorbs up to <span className="font-bold text-zinc-800">{buffer}%</span> drop
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    absorbs up to <span className="font-bold text-zinc-800 dark:text-zinc-200">{buffer}%</span> drop
                   </span>
                 )}
               </div>
@@ -90,7 +103,7 @@ export default function LiquidationCalc({ positions }) {
                   {prices.map(p => (
                     <div key={p.token} className="flex flex-col">
                       <span className="text-zinc-400 text-xs uppercase tracking-wider">{p.token} liq. price</span>
-                      <span className="text-zinc-900 font-bold">${p.liq.toFixed(2)}</span>
+                      <span className="text-zinc-900 dark:text-zinc-100 font-bold">${p.liq.toFixed(2)}</span>
                       <span className="text-zinc-400 text-xs">current ${p.current.toFixed(2)}</span>
                     </div>
                   ))}
@@ -114,15 +127,15 @@ export default function LiquidationCalc({ positions }) {
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <span className="text-zinc-500 text-xs font-medium">Price drop stress test</span>
-          <span className="text-zinc-900 font-bold text-sm">{drop === 0 ? 'Current' : `-${drop}%`}</span>
+          <span className="text-zinc-500 dark:text-zinc-400 text-xs font-medium">Price drop stress test</span>
+          <span className="text-zinc-900 dark:text-zinc-100 font-bold text-sm">{drop === 0 ? 'Current' : `-${drop}%`}</span>
         </div>
         <input
           type="range" min={0} max={50} step={1} value={drop}
           onChange={e => setDrop(Number(e.target.value))}
           className="w-full accent-[#8b00ff] cursor-pointer"
         />
-        <div className="flex justify-between text-zinc-300 text-xs">
+        <div className="flex justify-between text-zinc-300 dark:text-zinc-600 text-xs">
           <span>0%</span><span>-10%</span><span>-20%</span><span>-30%</span><span>-40%</span><span>-50%</span>
         </div>
       </div>

@@ -36,9 +36,9 @@ export default function PositionCard({ position }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-zinc-900 font-bold capitalize text-lg">{protocol}</span>
+          <span className="text-zinc-900 dark:text-zinc-100 font-bold capitalize text-lg">{protocol}</span>
           {positionType && POSITION_TYPE_LABEL[positionType] && (
-            <span className="text-xs text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded-full">
+            <span className="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full">
               {POSITION_TYPE_LABEL[positionType]}
             </span>
           )}
@@ -50,16 +50,16 @@ export default function PositionCard({ position }) {
 
       {/* Amounts */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-zinc-50 rounded-lg p-3">
+        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-3">
           <p className="text-zinc-400 text-xs mb-1 uppercase tracking-wider">Collateral</p>
-          <p className="text-zinc-900 font-bold text-lg">${collateralUsd?.toFixed(2) ?? '0.00'}</p>
+          <p className="text-zinc-900 dark:text-zinc-100 font-bold text-lg">${collateralUsd?.toFixed(2) ?? '0.00'}</p>
           {deposits.map(b => (
             <p key={b.token} className="text-zinc-400 text-xs mt-0.5">{b.token}: ${b.assetUsd.toFixed(2)}</p>
           ))}
         </div>
-        <div className="bg-zinc-50 rounded-lg p-3">
+        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-3">
           <p className="text-zinc-400 text-xs mb-1 uppercase tracking-wider">Borrowed</p>
-          <p className="text-zinc-900 font-bold text-lg">${borrowUsd?.toFixed(2) ?? '0.00'}</p>
+          <p className="text-zinc-900 dark:text-zinc-100 font-bold text-lg">${borrowUsd?.toFixed(2) ?? '0.00'}</p>
           {borrows.map(b => (
             <p key={b.token} className="text-zinc-400 text-xs mt-0.5">{b.token}: ${b.liabilityUsd.toFixed(2)}</p>
           ))}
@@ -71,15 +71,15 @@ export default function PositionCard({ position }) {
 
       {/* Liquidation info */}
       {info && riskLevel !== 'SAFE' && (
-        <div className="bg-zinc-50 rounded-lg p-3 flex flex-col gap-1 border border-zinc-100">
+        <div className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-3 flex flex-col gap-1 border border-zinc-100 dark:border-zinc-700">
           {Number(info.dropPct) > 0 && (
-            <p className="text-zinc-500 text-xs">
-              Collateral can drop <span className="text-zinc-900 font-semibold">{info.dropPct}%</span> before liquidation
+            <p className="text-zinc-500 dark:text-zinc-400 text-xs">
+              Collateral can drop <span className="text-zinc-900 dark:text-zinc-100 font-semibold">{info.dropPct}%</span> before liquidation
             </p>
           )}
           {info.collateralNeeded > 0 && (
-            <p className="text-zinc-500 text-xs">
-              Add <span className="text-zinc-900 font-semibold">${info.collateralNeeded}</span> collateral to reach safe zone
+            <p className="text-zinc-500 dark:text-zinc-400 text-xs">
+              Add <span className="text-zinc-900 dark:text-zinc-100 font-semibold">${info.collateralNeeded}</span> collateral to reach safe zone
             </p>
           )}
         </div>

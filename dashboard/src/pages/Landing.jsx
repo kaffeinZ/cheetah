@@ -2,6 +2,8 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ConnectWallet from '../components/ConnectWallet'
+import ThemeToggle from '../components/ThemeToggle'
+import { useTheme } from '../hooks/useTheme'
 
 const STEPS = [
   { n: '1', color: '#00c8e0', title: 'Connect your wallet', desc: 'Sign a message to verify ownership — no private keys ever leave your device.' },
@@ -49,6 +51,7 @@ const PLANS = [
 export default function Landing() {
   const { connected } = useWallet()
   const navigate = useNavigate()
+  const { dark, toggle } = useTheme()
 
   function handleAuth(authData) {
     localStorage.setItem('vrynn_auth', JSON.stringify(authData))
@@ -62,15 +65,23 @@ export default function Landing() {
   }, [connected])
 
   return (
-    <div className="min-h-screen bg-white text-zinc-900">
+    <div className="min-h-screen bg-white dark:bg-[#0f0f13] text-zinc-900 dark:text-zinc-100">
+
+      {/* Beta disclaimer */}
+      <div className="sticky top-0 z-50 bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-700">
+        Vrynn is in beta. Do not rely solely on this service for liquidation alerts — always monitor your positions independently. The protocol is actively evolving and may contain bugs.
+      </div>
 
       {/* Nav */}
-      <nav className="border-b border-black/8 px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full">
+      <nav className="border-b border-black/8 dark:border-white/7 dark:bg-[#1a1a24] px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full">
         <div className="flex items-center gap-2">
           <span className="text-3xl font-black gradient-text">Vrynn</span>
           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-[#00c8e0]/15 text-[#00c8e0] border border-[#00c8e0]/30">Beta</span>
         </div>
-        <ConnectWallet onAuth={handleAuth} compact />
+        <div className="flex items-center gap-3">
+          <ThemeToggle dark={dark} toggle={toggle} />
+          <ConnectWallet onAuth={handleAuth} compact />
+        </div>
       </nav>
 
       {/* Hero */}
@@ -82,14 +93,14 @@ export default function Landing() {
           Master Your Solana<br />
           <span className="gradient-text">Leverage Risk.</span>
         </h1>
-        <p className="text-zinc-500 text-lg max-w-xl">
+        <p className="text-zinc-500 dark:text-zinc-400 text-lg max-w-xl">
           Vrynn delivers real-time health factor alerts across MarginFi and Kamino — liquidation-proof your positions before volatility strikes.
         </p>
         <ConnectWallet onAuth={handleAuth} />
       </section>
 
       {/* How it works */}
-      <section className="bg-zinc-50 py-20">
+      <section className="bg-zinc-50 dark:bg-[#13131a] py-20">
         <div className="max-w-5xl mx-auto px-6">
           <h2 className="text-3xl font-black text-center mb-12">How it works</h2>
           <div className="grid sm:grid-cols-3 gap-6">
@@ -98,8 +109,8 @@ export default function Landing() {
                 <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-black" style={{ background: s.color }}>
                   {s.n}
                 </div>
-                <h3 className="font-bold text-zinc-900">{s.title}</h3>
-                <p className="text-zinc-500 text-sm">{s.desc}</p>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100">{s.title}</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -114,8 +125,8 @@ export default function Landing() {
             <div key={f.title} className="card p-6 flex gap-4" style={{ borderLeft: `4px solid ${f.color}` }}>
               <span className="text-3xl">{f.icon}</span>
               <div>
-                <h3 className="font-bold text-zinc-900 mb-1">{f.title}</h3>
-                <p className="text-zinc-500 text-sm">{f.desc}</p>
+                <h3 className="font-bold text-zinc-900 dark:text-zinc-100 mb-1">{f.title}</h3>
+                <p className="text-zinc-500 dark:text-zinc-400 text-sm">{f.desc}</p>
               </div>
             </div>
           ))}

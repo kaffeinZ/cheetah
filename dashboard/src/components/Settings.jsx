@@ -5,9 +5,9 @@ const API = 'https://vrynn.xyz/api'
 
 export default function Settings({ settings, onSaved }) {
   const { publicKey } = useWallet()
-  const [hfWarning,  setHfWarning]  = useState(settings?.hf_warning  ?? 1.5)
-  const [hfCritical, setHfCritical] = useState(settings?.hf_critical ?? 1.2)
-  const [alerts,     setAlerts]     = useState(settings?.alerts_enabled ?? 1)
+  const [hfWarning,    setHfWarning]    = useState(settings?.hf_warning    ?? 1.5)
+  const [perpAlertPct, setPerpAlertPct] = useState(settings?.perp_alert_pct ?? 10)
+  const [alerts,       setAlerts]       = useState(settings?.alerts_enabled  ?? 1)
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState(null)
   const [saved,      setSaved]      = useState(false)
@@ -28,8 +28,9 @@ export default function Settings({ settings, onSaved }) {
           address:       publicKey.toBase58(),
           signature,
           hfWarning:     parseFloat(hfWarning),
-          hfCritical:    parseFloat(hfCritical),
+          hfCritical:    Math.max(1.0, parseFloat(hfWarning) - 0.3),
           alertsEnabled: alerts === 1,
+          perpAlertPct:  parseFloat(perpAlertPct),
         }),
       })
       const data = await res.json()
@@ -45,36 +46,36 @@ export default function Settings({ settings, onSaved }) {
 
   return (
     <div className="card p-5 flex flex-col gap-5">
-      <h2 className="text-zinc-700 font-bold">Alert Settings</h2>
+      <h2 className="text-zinc-700 dark:text-zinc-300 font-bold">Alert Settings</h2>
 
       <div className="flex flex-col gap-1">
         <div className="flex justify-between text-sm">
-          <label className="text-zinc-500">Warning threshold</label>
+          <label className="text-zinc-500 dark:text-zinc-400">Lending alert threshold (HF)</label>
           <span className="font-mono font-bold" style={{ color: '#e06000' }}>{parseFloat(hfWarning).toFixed(2)}</span>
         </div>
-        <input type="range" min="1.1" max="3.0" step="0.05"
+        <input type="range" min="1.05" max="2.5" step="0.05"
           value={hfWarning}
           onChange={e => setHfWarning(e.target.value)}
           className="w-full accent-[#e06000]"
         />
-        <p className="text-zinc-400 text-xs">Alert fires when HF drops below this</p>
+        <p className="text-zinc-400 text-xs">Alert fires when lending HF drops below this</p>
       </div>
 
       <div className="flex flex-col gap-1">
         <div className="flex justify-between text-sm">
-          <label className="text-zinc-500">Critical threshold</label>
-          <span className="font-mono font-bold" style={{ color: '#e0007a' }}>{parseFloat(hfCritical).toFixed(2)}</span>
+          <label className="text-zinc-500 dark:text-zinc-400">Perp alert threshold</label>
+          <span className="font-mono font-bold" style={{ color: '#e0007a' }}>{parseFloat(perpAlertPct).toFixed(0)}% from liq</span>
         </div>
-        <input type="range" min="1.0" max="1.5" step="0.05"
-          value={hfCritical}
-          onChange={e => setHfCritical(e.target.value)}
+        <input type="range" min="2" max="20" step="1"
+          value={perpAlertPct}
+          onChange={e => setPerpAlertPct(e.target.value)}
           className="w-full accent-[#e0007a]"
         />
-        <p className="text-zinc-400 text-xs">Must be lower than warning threshold</p>
+        <p className="text-zinc-400 text-xs">Alert fires when perp is within this % of liquidation</p>
       </div>
 
       <div className="flex items-center justify-between">
-        <span className="text-zinc-500 text-sm">Telegram alerts</span>
+        <span className="text-zinc-500 dark:text-zinc-400 text-sm">Telegram alerts</span>
         <button
           onClick={() => setAlerts(alerts === 1 ? 0 : 1)}
           className="w-12 h-6 rounded-full transition-colors"

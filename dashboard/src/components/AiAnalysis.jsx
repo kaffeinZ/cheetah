@@ -71,11 +71,11 @@ export default function AiAnalysis({ analyses = [], onResult }) {
                 a.risk_level === 'HIGH'   ? 'bg-[#e06000]/15 text-[#e06000]' :
                 'bg-[#e0007a]/15 text-[#e0007a]'
               }`}>{a.risk_level}</span>
-              <span className="text-zinc-300 text-xs ml-auto">
+              <span className="text-zinc-300 dark:text-zinc-600 text-xs ml-auto">
                 {new Date(a.created_at * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-            <p className="text-zinc-600 text-sm leading-relaxed">{a.analysis}</p>
+            <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">{a.analysis}</p>
           </div>
         ))
       ) : (
