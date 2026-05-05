@@ -11,10 +11,8 @@ import TelegramLink from '../components/TelegramLink'
 import AiAnalysis from '../components/AiAnalysis'
 import LiquidationCalc from '../components/LiquidationCalc'
 import ThemeToggle from '../components/ThemeToggle'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 
 export default function Dashboard() {
   const { publicKey } = useWallet()
@@ -57,22 +55,15 @@ export default function Dashboard() {
         <section className="flex flex-col gap-5 lg:order-1 order-1">
           {portfolio && (
             <>
-              <RiskScore score={portfolio.riskScore} />
-
-              <div className="grid grid-cols-2 gap-4">
-                <Card className="glow-cyan border-l-4" style={{ borderLeftColor: '#00c8e0' }}>
-                  <CardContent className="pt-4">
-                    <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">Total Collateral</p>
-                    <p className="text-2xl font-bold">${portfolio.totalCollateralUsd?.toFixed(2) ?? '0.00'}</p>
-                  </CardContent>
-                </Card>
-                <Card className="glow-pink border-l-4" style={{ borderLeftColor: '#e0007a' }}>
-                  <CardContent className="pt-4">
-                    <p className="text-muted-foreground text-xs mb-1 uppercase tracking-wider">Total Borrowed</p>
-                    <p className="text-2xl font-bold">${portfolio.totalBorrowUsd?.toFixed(2) ?? '0.00'}</p>
-                  </CardContent>
-                </Card>
-              </div>
+              <RiskScore
+                score={portfolio.riskScore}
+                totalCollateralUsd={portfolio.totalCollateralUsd}
+                totalBorrowUsd={portfolio.totalBorrowUsd}
+                perpExposureUsd={portfolio.perpExposureUsd}
+                totalUnrealizedPnl={portfolio.totalUnrealizedPnl}
+                worstHealthFactor={portfolio.worstHealthFactor}
+                positions={portfolio.positions}
+              />
 
               <AiAnalysis analyses={portfolio.latestAiAnalysis ?? []} onResult={refresh} />
 

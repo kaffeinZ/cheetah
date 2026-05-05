@@ -183,14 +183,21 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
     );
   }
 
-  const totalCollateralUsd = positions.reduce((sum, p) => sum + (p.collateralUsd ?? 0), 0);
-  const totalBorrowUsd     = positions.reduce((sum, p) => sum + (p.borrowUsd ?? 0), 0);
+  const lendingPositions   = positions.filter((p) => p.positionType !== 'perp');
+  const perpPositions      = positions.filter((p) => p.positionType === 'perp');
+  const totalCollateralUsd = lendingPositions.reduce((sum, p) => sum + (p.collateralUsd ?? 0), 0)
+                           + perpPositions.reduce((sum, p) => sum + (p.collateralUsd ?? 0), 0);
+  const totalBorrowUsd     = lendingPositions.reduce((sum, p) => sum + (p.borrowUsd ?? 0), 0);
+  const perpExposureUsd    = perpPositions.reduce((sum, p) => sum + (p.sizeUsd ?? 0), 0);
+  const totalUnrealizedPnl = perpPositions.reduce((sum, p) => sum + (p.unrealizedPnl ?? 0), 0);
   const activeHfs          = positions.map((p) => p.healthFactor).filter((hf) => hf !== null);
   const worstHealthFactor  = activeHfs.length ? Math.min(...activeHfs) : null;
   res.json({
     positions,
     totalCollateralUsd,
     totalBorrowUsd,
+    perpExposureUsd,
+    totalUnrealizedPnl,
     worstHealthFactor,
     riskScore:        computeRiskScore(positions),
     latestAiAnalysis: getLatestAiAnalysis(walletAddress),

@@ -8,6 +8,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { AuroraBackground } from '@/components/ui/aurora-background'
+import { motion } from 'motion/react'
 
 const STEPS = [
   { n: '1', color: '#00c8e0', title: 'Connect your wallet', desc: 'Sign a message to verify ownership — no private keys ever leave your device.' },
@@ -88,18 +90,25 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="max-w-5xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6">
-        <Badge variant="outline" style={{ color: '#00c8e0', borderColor: '#00c8e040' }} className="uppercase tracking-widest text-xs px-4 py-1.5">
-          Solana DeFi Protection
-        </Badge>
-        <h1 className="text-5xl sm:text-6xl font-black leading-tight">
-          Master Your Solana <span className="gradient-text">Leverage Risk.</span>
-        </h1>
-        <p className="text-muted-foreground text-lg max-w-xl">
-          Vrynn delivers real-time liquidation alerts across MarginFi, Kamino and Jupiter Perps — liquidation-proof your positions before volatility strikes.
-        </p>
-        <ConnectWallet onAuth={handleAuth} />
-      </section>
+      <AuroraBackground className="bg-background text-foreground">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.8, ease: 'easeInOut' }}
+          className="relative z-10 flex flex-col items-center text-center gap-6 px-6 max-w-5xl mx-auto w-full"
+        >
+          <Badge variant="outline" style={{ color: '#00c8e0', borderColor: '#00c8e040' }} className="uppercase tracking-widest text-xs px-4 py-1.5">
+            Solana DeFi Protection
+          </Badge>
+          <h1 className="text-5xl sm:text-6xl font-black leading-tight">
+            Master Your Solana <span className="gradient-text">Leverage Risk.</span>
+          </h1>
+          <p className="text-muted-foreground text-lg max-w-xl">
+            Vrynn delivers real-time liquidation alerts across MarginFi, Kamino and Jupiter Perps — liquidation-proof your positions before volatility strikes.
+          </p>
+          <ConnectWallet onAuth={handleAuth} />
+        </motion.div>
+      </AuroraBackground>
 
       <Separator />
 
@@ -151,7 +160,7 @@ export default function Landing() {
           <h2 className="text-3xl font-black text-center mb-12">Pricing</h2>
           <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {PLANS.map(p => (
-              <Card key={p.name} className={`relative flex flex-col ${p.highlight ? 'ring-2' : ''}`}
+              <Card key={p.name} className={`relative flex flex-col overflow-visible ${p.highlight ? 'ring-2' : ''}`}
                 style={{ borderTop: `4px solid ${p.color}`, ...(p.highlight ? { ringColor: p.color } : {}) }}>
                 {p.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
