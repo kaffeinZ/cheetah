@@ -8,8 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { AuroraBackground } from '@/components/ui/aurora-background'
-import { motion } from 'motion/react'
+import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
 
 const STEPS = [
   { n: '1', color: '#00c8e0', title: 'Connect your wallet', desc: 'Sign a message to verify ownership — no private keys ever leave your device.' },
@@ -90,25 +89,24 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <AuroraBackground className="bg-background text-foreground">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8, ease: 'easeInOut' }}
-          className="relative z-10 flex flex-col items-center text-center gap-6 px-6 max-w-5xl mx-auto w-full"
-        >
-          <Badge variant="outline" style={{ color: '#00c8e0', borderColor: '#00c8e040' }} className="uppercase tracking-widest text-xs px-4 py-1.5">
-            Solana DeFi Protection
-          </Badge>
-          <h1 className="text-5xl sm:text-6xl font-black leading-tight">
-            Master Your Solana <span className="gradient-text">Leverage Risk.</span>
-          </h1>
-          <p className="text-muted-foreground text-lg max-w-xl">
-            Vrynn delivers real-time liquidation alerts across MarginFi, Kamino and Jupiter Perps — liquidation-proof your positions before volatility strikes.
-          </p>
+      <section className="max-w-5xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6">
+        <Badge variant="outline" style={{ color: '#00c8e0', borderColor: '#00c8e040' }} className="uppercase tracking-widest text-xs px-4 py-1.5">
+          Solana DeFi Protection
+        </Badge>
+        <h1 className="text-5xl sm:text-6xl font-black leading-tight">
+          Master Your Solana <span className="gradient-text">Leverage Risk.</span>
+        </h1>
+        <TextGenerateEffect
+          words="Vrynn delivers real-time liquidation alerts across MarginFi Kamino and Jupiter Perps — liquidation-proof your positions before volatility strikes."
+          className="text-muted-foreground max-w-xl font-normal text-lg"
+          filter={false}
+          duration={0.3}
+        />
+        <div className="relative">
+          <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#00c8e0] to-[#e0007a] blur-md opacity-40 animate-pulse" />
           <ConnectWallet onAuth={handleAuth} />
-        </motion.div>
-      </AuroraBackground>
+        </div>
+      </section>
 
       <Separator />
 

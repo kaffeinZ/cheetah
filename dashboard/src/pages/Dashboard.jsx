@@ -23,7 +23,7 @@ export default function Dashboard() {
   const short = address ? `${address.slice(0, 4)}...${address.slice(-4)}` : ''
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="min-h-screen bg-background text-foreground flex flex-col overflow-x-hidden">
 
       {/* Header */}
       <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between shadow-sm">
@@ -31,8 +31,8 @@ export default function Dashboard() {
           <h1 className="text-3xl font-black gradient-text tracking-tight">Vrynn</h1>
           <Badge variant="outline" style={{ color: '#00c8e0', borderColor: '#00c8e040' }}>Beta</Badge>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-muted-foreground text-sm font-mono">{short}</span>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-muted-foreground text-sm font-mono">{short}</span>
           <ThemeToggle dark={dark} toggle={toggle} />
           <WalletMultiButton />
         </div>

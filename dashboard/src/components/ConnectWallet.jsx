@@ -2,9 +2,11 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui'
 import { useEffect, useState } from 'react'
 import bs58 from 'bs58'
-import { Button } from '@/components/ui/button'
 
 const API = 'https://vrynn.xyz/api'
+const PHANTOM_DEEPLINK = 'https://phantom.app/ul/browse/https%3A%2F%2Fvrynn.xyz?ref=https%3A%2F%2Fvrynn.xyz'
+const isMobileDevice = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
+const isInPhantom = typeof window !== 'undefined' && !!window.phantom?.solana
 let _authenticating = false
 
 export default function ConnectWallet({ onAuth, compact }) {
@@ -49,6 +51,16 @@ export default function ConnectWallet({ onAuth, compact }) {
       <p className="text-[#e0007a] text-sm">{error}</p>
       <WalletMultiButton />
     </div>
+  )
+
+  if (isMobileDevice && !isInPhantom) return (
+    <a
+      href={PHANTOM_DEEPLINK}
+      className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-white text-sm"
+      style={{ background: 'linear-gradient(90deg, #00c8e0, #7000e0)' }}
+    >
+      Open in Phantom
+    </a>
   )
 
   return <WalletMultiButton style={compact ? { fontSize: '13px', padding: '6px 14px', height: 'auto' } : {}} />

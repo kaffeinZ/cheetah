@@ -12,11 +12,19 @@ import App from './App.jsx'
 
 const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
 
+const getMobileAdapter = () => {
+  try {
+    return new SolanaMobileWalletAdapter({
+      appIdentity: { name: 'Vrynn', uri: 'https://vrynn.xyz', icon: '/favicon.ico' },
+      cluster: 'mainnet-beta',
+    })
+  } catch {
+    return null
+  }
+}
+
 const wallets = [
-  ...(isMobile ? [new SolanaMobileWalletAdapter({
-    appIdentity: { name: 'Vrynn', uri: 'https://vrynn.xyz', icon: '/favicon.ico' },
-    cluster: 'mainnet-beta',
-  })] : []),
+  ...(isMobile ? [getMobileAdapter()].filter(Boolean) : []),
   new PhantomWalletAdapter(),
   new SolflareWalletAdapter(),
 ]

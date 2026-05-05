@@ -18,7 +18,6 @@ export default function RiskScore({ score, totalCollateralUsd, totalBorrowUsd, p
 
   const netValue     = (totalCollateralUsd ?? 0) - (totalBorrowUsd ?? 0) + (totalUnrealizedPnl ?? 0)
   const pnlSign      = (totalUnrealizedPnl ?? 0) >= 0 ? '+' : ''
-  const activeCount  = positions?.filter(p => p.healthFactor !== null).length ?? 0
   const protocolsSet = [...new Set(positions?.map(p => p.protocol) ?? [])]
 
   const radius       = 40
@@ -58,29 +57,29 @@ export default function RiskScore({ score, totalCollateralUsd, totalBorrowUsd, p
           {/* Right — Metrics grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y divide-border">
 
-            <div className="flex flex-col justify-center gap-1 p-5">
+            <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
               <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Net Value</p>
-              <p className="text-2xl font-black">${netValue.toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-black">${netValue.toFixed(2)}</p>
               <p className="text-xs" style={{ color: (totalUnrealizedPnl ?? 0) >= 0 ? '#2ecc00' : '#e0007a' }}>
                 {pnlSign}{(totalUnrealizedPnl ?? 0).toFixed(2)} PnL
               </p>
             </div>
 
-            <div className="flex flex-col justify-center gap-1 p-5">
+            <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
               <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Collateral</p>
-              <p className="text-2xl font-black" style={{ color: '#00c8e0' }}>${(totalCollateralUsd ?? 0).toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-black" style={{ color: '#00c8e0' }}>${(totalCollateralUsd ?? 0).toFixed(2)}</p>
               <p className="text-muted-foreground text-xs">total deposited</p>
             </div>
 
-            <div className="flex flex-col justify-center gap-1 p-5">
+            <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
               <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Perp Exposure</p>
-              <p className="text-2xl font-black" style={{ color: '#e0007a' }}>${(perpExposureUsd ?? 0).toFixed(2)}</p>
+              <p className="text-xl sm:text-2xl font-black" style={{ color: '#e0007a' }}>${(perpExposureUsd ?? 0).toFixed(2)}</p>
               <p className="text-muted-foreground text-xs">total notional</p>
             </div>
 
-            <div className="flex flex-col justify-center gap-1 p-5">
+            <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
               <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Worst HF</p>
-              <p className="text-2xl font-black" style={{ color: worstHealthFactor && worstHealthFactor < 1.5 ? '#e06000' : '#2ecc00' }}>
+              <p className="text-xl sm:text-2xl font-black" style={{ color: worstHealthFactor && worstHealthFactor < 1.5 ? '#e06000' : '#2ecc00' }}>
                 {worstHealthFactor ? worstHealthFactor.toFixed(3) : '—'}
               </p>
               <p className="text-muted-foreground text-xs">{protocolsSet.join(' · ') || 'no protocols'}</p>
