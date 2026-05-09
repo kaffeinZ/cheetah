@@ -74,7 +74,7 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]);
 }
 
-async function getClient() {
+export async function getClient() {
   const now = Date.now();
   if (_client && now - _clientLoadedAt < CLIENT_TTL_MS) return _client;
 

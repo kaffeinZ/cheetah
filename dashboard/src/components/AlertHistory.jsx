@@ -10,10 +10,10 @@ const RISK_COLORS = {
   SAFE:     { bg: '#2ecc0025', color: '#2ecc00' },
 }
 
-const STALE_HOURS = 24
+const STALE_HOURS = 168
 
-export default function AlertHistory({ alerts }) {
-  const recent = alerts?.slice(0, 20) ?? []
+export default function AlertHistory({ alerts, fullPage = false }) {
+  const recent = alerts?.slice(0, fullPage ? 100 : 20) ?? []
   const now    = Date.now() / 1000
 
   return (
@@ -29,13 +29,13 @@ export default function AlertHistory({ alerts }) {
             <p className="text-muted-foreground text-xs">No alerts fired yet.</p>
           </div>
         ) : (
-          <ScrollArea className="h-64 pr-2">
+          <ScrollArea className={fullPage ? 'h-auto pr-2' : 'h-64 pr-2'}>
             <div className="flex flex-col gap-3">
               {recent.map((a, i) => {
                 const isStale = (now - a.sent_at) > STALE_HOURS * 3600
                 const riskStyle = RISK_COLORS[a.risk_level] ?? { bg: '#e4e4e725', color: '#71717a' }
                 return (
-                  <div key={i} className={`border-b border-border pb-3 last:border-0 last:pb-0 ${isStale ? 'opacity-40' : ''}`}>
+                  <div key={i} className={`border-b border-border pb-3 last:border-0 last:pb-0 ${isStale ? 'opacity-60' : ''}`}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold capitalize">{a.protocol}</span>

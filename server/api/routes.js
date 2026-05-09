@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { PublicKey } from '@solana/web3.js';
 import { verifyWalletSignature, SIGN_MESSAGE } from './auth.js';
+import { getMarkets } from '../protocols/markets.js'
+import { getPerpsMarkets } from '../protocols/perps.js';
 import {
   upsertUser,
   addWallet,
@@ -378,6 +380,29 @@ router.get('/hf-history/:walletAddress', (req, res) => {
     perps:   Object.entries(perpBuckets).map(([t, pct]) => ({ t: Number(t), pct })).sort((a,b) => a.t - b.t),
   });
 });
+
+// ── Markets / Live Rates ───────────────────────────────────────────────────
+// GET /api/markets  →  best lending pools across MarginFi + Kamino
+router.get('/markets', async (_req, res) => {
+  try {
+    const markets = await getMarkets();
+    res.json(markets);
+  } catch (err) {
+    console.error('[markets]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Perps Markets ─────────────────────────────────────────────────────────
+// GET /api/perps  →  Jupiter Perps borrow rates + utilization for SOL/BTC/ETH
+router.get('/perps', async (_req, res) => {
+  try {
+    res.json(await getPerpsMarkets())
+  } catch (err) {
+    console.error('[perps]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
 
 // ── Admin: manual tweet ────────────────────────────────────────────────────
 // POST /api/admin/tweet  body: { secret, text }

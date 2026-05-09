@@ -75,7 +75,11 @@ export default function AiAnalysis({ analyses = [], onResult }) {
 
       <CardContent className="flex flex-col gap-3">
         {analyses.length > 0 ? (
-          analyses.map((a, i) => {
+          (() => {
+            const maxTs  = Math.max(...analyses.map(a => a.created_at))
+            const latest = analyses.filter(a => maxTs - a.created_at < 120)
+            return latest
+          })().map((a, i) => {
             const riskStyle = RISK_COLORS[a.risk_level] ?? { bg: '#e4e4e725', color: '#71717a' }
             return (
               <div key={i} className="flex flex-col gap-1">

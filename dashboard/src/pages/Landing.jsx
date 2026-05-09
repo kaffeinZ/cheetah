@@ -4,11 +4,136 @@ import { useNavigate } from 'react-router-dom'
 import ConnectWallet from '../components/ConnectWallet'
 import ThemeToggle from '../components/ThemeToggle'
 import { useTheme } from '../hooks/useTheme'
+import { useMarkets } from '../hooks/useMarkets'
+import { usePerps }   from '../hooks/usePerps'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
+import { ExternalLink } from 'lucide-react'
+
+const PROTOCOL_COLOR = { marginfi: '#00c8e0', kamino: '#a855f7' }
+
+function apyColor(apy) {
+  if (apy >= 20) return '#ffd700'
+  if (apy >= 10) return '#2ecc00'
+  if (apy >= 5)  return '#00c8e0'
+  if (apy >= 2)  return '#e06000'
+  return '#888'
+}
+
+function LandingRateRow({ m, valueKey, colorFn }) {
+  const color = PROTOCOL_COLOR[m.protocol] ?? '#888'
+  const val   = m[valueKey]
+  return (
+    <a href={m.url} target="_blank" rel="noopener noreferrer"
+      className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/40 transition-colors group">
+      <div className="flex items-center gap-2">
+        <span className="font-semibold text-sm">{m.token ?? '—'}</span>
+        <Badge className="text-[10px] px-1.5 py-0 font-bold uppercase"
+          style={{ background: color + '22', color, border: 'none' }}>
+          {m.protocol === 'marginfi' ? 'mrgn' : m.market ?? m.protocol}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-1">
+        <span className="font-black tabular-nums text-sm" style={{ color: colorFn(val) }}>
+          {val > 0.01 ? `${val.toFixed(2)}%` : '—'}
+        </span>
+        <ExternalLink size={11} className="opacity-0 group-hover:opacity-50 text-muted-foreground" />
+      </div>
+    </a>
+  )
+}
+
+const TOKEN_ICONS  = { SOL: '◎', BTC: '₿', ETH: 'Ξ' }
+const TOKEN_COLORS = { SOL: '#9945ff', BTC: '#f7931a', ETH: '#627eea' }
+const PERPS_URLS   = { SOL: 'https://jup.ag/perps/long/SOL-SOL', BTC: 'https://jup.ag/perps/long/WBTC-WBTC', ETH: 'https://jup.ag/perps/long/ETH-ETH' }
+
+function formatPrice(p) {
+  if (p >= 1000) return `$${p.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+  if (p >= 1)    return `$${p.toFixed(2)}`
+  return `$${p.toFixed(4)}`
+}
+
+function UtilBar({ pct, color }) {
+  return (
+    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mt-1">
+      <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
+    </div>
+  )
+}
+
+function PerpsCard({ p }) {
+  const tokenColor = TOKEN_COLORS[p.token] ?? '#888'
+  const total    = p.longUtilization + p.shortUtilization
+  const longPct  = total > 0 ? (p.longUtilization / total) * 100 : 50
+  const shortPct = 100 - longPct
+  const biasLabel = longPct > 60 ? 'Long-heavy' : longPct < 40 ? 'Short-heavy' : 'Balanced'
+  const biasColor = longPct > 60 ? '#2ecc00' : longPct < 40 ? '#e0007a' : '#888'
+
+  return (
+    <a href={PERPS_URLS[p.token] ?? 'https://jup.ag/perps'} target="_blank" rel="noopener noreferrer"
+      className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4 hover:bg-muted/40 transition-colors group relative overflow-hidden">
+      <div className="absolute inset-0 opacity-5 blur-2xl pointer-events-none"
+        style={{ background: `radial-gradient(circle at 20% 20%, ${tokenColor}, transparent 60%)` }} />
+
+      {/* Header: token + price + 24h change */}
+      <div className="flex items-center justify-between relative">
+        <div className="flex items-center gap-2">
+          <span className="text-xl font-black" style={{ color: tokenColor }}>{TOKEN_ICONS[p.token] ?? p.token[0]}</span>
+          <span className="font-black text-base">{p.token}</span>
+        </div>
+        <div className="flex flex-col items-end gap-0.5">
+          <div className="flex items-center gap-1">
+            <span className="text-sm font-semibold tabular-nums text-muted-foreground">{p.price > 0 ? formatPrice(p.price) : '—'}</span>
+            <ExternalLink size={12} className="text-muted-foreground opacity-0 group-hover:opacity-60 transition-opacity" />
+          </div>
+          {p.price24hChange != null && (
+            <span className="text-xs font-bold tabular-nums" style={{ color: p.price24hChange >= 0 ? '#2ecc00' : '#e0007a' }}>
+              {p.price24hChange >= 0 ? '+' : ''}{p.price24hChange.toFixed(2)}%
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Market bias bar */}
+      <div className="flex flex-col gap-1.5 relative">
+        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+          <span style={{ color: '#2ecc00' }}>Long {p.longUtilization.toFixed(1)}%</span>
+          <span style={{ color: '#e0007a' }}>Short {p.shortUtilization.toFixed(1)}%</span>
+        </div>
+        <div className="w-full h-2 rounded-full overflow-hidden flex bg-muted">
+          <div className="h-full transition-all" style={{ width: `${longPct}%`, background: '#2ecc00' }} />
+          <div className="h-full transition-all" style={{ width: `${shortPct}%`, background: '#e0007a' }} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold" style={{ color: biasColor }}>{biasLabel}</span>
+          <span className="text-[10px] text-muted-foreground">{longPct.toFixed(0)}% / {shortPct.toFixed(0)}%</span>
+        </div>
+      </div>
+
+      {/* Borrow rates */}
+      <div className="grid grid-cols-2 gap-4 relative">
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Long borrow</p>
+          <p className="text-xs font-semibold tabular-nums mt-0.5">{p.longBorrowRateHr.toFixed(4)}%<span className="text-muted-foreground font-normal">/h</span></p>
+          <p className="text-[10px] text-muted-foreground">{p.longBorrowRateApr.toFixed(2)}% APR</p>
+        </div>
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Short borrow</p>
+          <p className="text-xs font-semibold tabular-nums mt-0.5">{p.shortBorrowRateHr.toFixed(4)}%<span className="text-muted-foreground font-normal">/h</span></p>
+          <p className="text-[10px] text-muted-foreground">{p.shortBorrowRateApr.toFixed(2)}% APR</p>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border pt-3 relative">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Open fee</span>
+        <span className="text-xs font-semibold tabular-nums">{p.openFeePercent.toFixed(2)}%</span>
+      </div>
+    </a>
+  )
+}
 
 const STEPS = [
   { n: '1', color: '#00c8e0', title: 'Connect your wallet', desc: 'Sign a message to verify ownership — no private keys ever leave your device.' },
@@ -56,6 +181,8 @@ export default function Landing() {
   const { connected } = useWallet()
   const navigate = useNavigate()
   const { dark, toggle } = useTheme()
+  const { markets } = useMarkets()
+  const { perps }   = usePerps()
 
   function handleAuth(authData) {
     localStorage.setItem('vrynn_auth', JSON.stringify(authData))
@@ -94,10 +221,10 @@ export default function Landing() {
           Solana DeFi Protection
         </Badge>
         <h1 className="text-5xl sm:text-6xl font-black leading-tight">
-          Master Your Solana <span className="gradient-text">Leverage Risk.</span>
+          Your Solana DeFi <span className="gradient-text">Intelligence Hub.</span>
         </h1>
         <TextGenerateEffect
-          words="Vrynn delivers real-time liquidation alerts across MarginFi Kamino and Jupiter Perps — liquidation-proof your positions before volatility strikes."
+          words="Live lending rates, position health, and AI risk analysis across MarginFi, Kamino and Jupiter — everything you need to stay informed before the market moves."
           className="text-muted-foreground max-w-xl font-normal text-lg"
           filter={false}
           duration={0.3}
@@ -107,6 +234,107 @@ export default function Landing() {
           <ConnectWallet onAuth={handleAuth} />
         </div>
       </section>
+
+      <Separator />
+
+      {/* Live Rates */}
+      {markets.length > 0 && (
+        <section className="w-full py-20 bg-muted/40 relative overflow-hidden">
+          <div className="max-w-5xl mx-auto px-6 relative z-10">
+            <div className="text-center mb-10">
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#00c8e0' }}>Live on-chain</span>
+              <h2 className="text-3xl sm:text-4xl font-black mt-2">DeFi Rates Right Now</h2>
+              <p className="text-muted-foreground mt-2 text-sm">Supply &amp; borrow rates across MarginFi and Kamino · updates every 5 min</p>
+            </div>
+
+            {/* Ticker */}
+            <div className="overflow-hidden mb-10 border border-border rounded-lg py-2 bg-background/60">
+              <div className="flex gap-8 whitespace-nowrap"
+                style={{ animation: 'marquee 30s linear infinite', width: 'max-content' }}>
+                {[...markets, ...markets].map((m, i) => (
+                  <span key={i} className="flex items-center gap-2 text-sm font-semibold">
+                    <span className="text-foreground">{m.token}</span>
+                    <span style={{ color: apyColor(m.supplyApy) }}>{m.supplyApy.toFixed(2)}%</span>
+                    <span className="text-muted-foreground">·</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Featured top lend + top borrow */}
+            <div className="grid sm:grid-cols-2 gap-6 mb-10">
+              {(() => {
+                const topLend   = [...markets].sort((a,b) => b.supplyApy - a.supplyApy)[0]
+                const topBorrow = [...markets].filter(m => m.borrowApy > 0.01).sort((a,b) => a.borrowApy - b.borrowApy)[0]
+                return [
+                  { m: topLend,   label: 'Highest Supply APY',  valueKey: 'supplyApy',  color: '#2ecc00' },
+                  { m: topBorrow, label: 'Cheapest Borrow APY', valueKey: 'borrowApy',  color: '#00c8e0' },
+                ].map(({ m, label, valueKey, color }) => m && (
+                  <a key={label} href={m.url} target="_blank" rel="noopener noreferrer"
+                    className="relative p-6 rounded-xl border border-border bg-card hover:bg-muted/60 transition-colors group overflow-hidden">
+                    <div className="absolute inset-0 opacity-10 blur-2xl rounded-xl pointer-events-none"
+                      style={{ background: `radial-gradient(circle at 30% 50%, ${color}, transparent 70%)` }} />
+                    <p className="text-xs font-bold uppercase tracking-wider mb-3" style={{ color }}>{label}</p>
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <p className="text-4xl font-black tabular-nums" style={{ color }}>{m[valueKey].toFixed(2)}%</p>
+                        <p className="text-muted-foreground text-sm mt-1">{m.token} · {m.protocol === 'marginfi' ? 'MarginFi' : 'Kamino'}</p>
+                      </div>
+                      <ExternalLink size={16} className="text-muted-foreground group-hover:text-foreground transition-colors mb-1" />
+                    </div>
+                  </a>
+                ))
+              })()}
+            </div>
+
+            {/* Table */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              {[
+                { title: '↑ Best to Lend',        color: '#2ecc00', list: [...markets].sort((a,b) => b.supplyApy - a.supplyApy).slice(0,6), key: 'supplyApy', colorFn: apyColor },
+                { title: '↓ Cheapest to Borrow',  color: '#00c8e0', list: [...markets].filter(m => m.borrowApy > 0.01).sort((a,b) => a.borrowApy - b.borrowApy).slice(0,6), key: 'borrowApy',
+                  colorFn: v => v <= 3 ? '#2ecc00' : v <= 7 ? '#00c8e0' : v <= 12 ? '#e06000' : '#e0007a' },
+              ].map(({ title, color, list, key, colorFn }) => (
+                <div key={title} className="rounded-xl border border-border overflow-hidden bg-card">
+                  <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-muted/30">
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color }}>{title}</span>
+                  </div>
+                  {list.map((m, i) => (
+                    <a key={i} href={m.url} target="_blank" rel="noopener noreferrer"
+                      className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/40 transition-colors">
+                      <div className="flex flex-col gap-0">
+                        <span className="text-sm font-bold" style={{ color: PROTOCOL_COLOR[m.protocol] ?? 'inherit' }}>{m.token}</span>
+                        <span className="text-[10px] text-muted-foreground">{m.protocol === 'marginfi' ? 'MarginFi' : 'Kamino'}</span>
+                      </div>
+                      <span className="font-black text-sm tabular-nums" style={{ color: colorFn(m[key]) }}>
+                        {m[key].toFixed(2)}%
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+          <style>{`@keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }`}</style>
+        </section>
+      )}
+
+      <Separator />
+
+      {/* Jupiter Perps */}
+      {perps.length > 0 && (
+        <section className="w-full py-20 relative overflow-hidden">
+          <div className="max-w-5xl mx-auto px-6">
+            <div className="text-center mb-10">
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#c7f284' }}>Jupiter Perps</span>
+              <h2 className="text-3xl sm:text-4xl font-black mt-2">Live Perpetuals Markets</h2>
+              <p className="text-muted-foreground mt-2 text-sm">Long &amp; short borrow rates and utilization · updates every 5 min</p>
+            </div>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {perps.map(p => <PerpsCard key={p.token} p={p} />)}
+            </div>
+          </div>
+        </section>
+      )}
 
       <Separator />
 
@@ -199,8 +427,8 @@ export default function Landing() {
 
       {/* Bottom CTA */}
       <section className="max-w-5xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6">
-        <h2 className="text-4xl font-black">Start monitoring <span className="gradient-text">for free</span></h2>
-        <p className="text-muted-foreground text-lg">Connect your wallet and get your first alert in under a minute.</p>
+        <h2 className="text-4xl font-black">Start exploring <span className="gradient-text">for free</span></h2>
+        <p className="text-muted-foreground text-lg">Connect your wallet and see your positions, live rates, and risk analysis in seconds.</p>
         <ConnectWallet onAuth={handleAuth} />
       </section>
 
