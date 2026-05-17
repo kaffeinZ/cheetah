@@ -1,5 +1,22 @@
 node_modules/
+dist/
+
+# Environment
 .env
+.env.*
+
+# Database
 *.db
 *.db-shm
 *.db-wal
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+
+# Internal
+CLAUDE.md
+withdraw-marginfi.mjs
