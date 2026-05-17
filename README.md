@@ -1,20 +1,29 @@
 # Vrynn
 
-Real-time liquidation risk monitor for Solana DeFi lending protocols.
+Solana DeFi portfolio dashboard — live positions, health factors, and risk across lending and perp protocols in one place.
 
-DeFi lending is powerful but unforgiving — most platforms give you a health factor number and nothing else. No context, no alerts, no explanation of *why* your position is risky or what's driving the change. Vrynn was built to close that gap: continuous monitoring across MarginFi and Kamino, intelligent Telegram alerts before liquidation happens, and AI-powered analysis that accounts for your specific position type and current market conditions.
+Vrynn is in active development and the product is still taking shape. Features, APIs, and interfaces may change without notice.
+
+---
+
+## What it does
+
+Most DeFi dashboards give you a number and nothing else. Vrynn pulls your active positions across MarginFi, Kamino, and Jupiter/Drift perps, classifies the risk based on your actual position type, and lets you run an AI analysis that explains *why* your position sits at that risk level — factoring in collateral composition, borrow structure, and price trends.
+
+No alerts. No monitoring. Connect your wallet, see the full picture, run an analysis if you want context.
 
 ---
 
 ## Features
 
-- **Multi-protocol monitoring** — tracks MarginFi and Kamino positions in a single dashboard
-- **Position-type aware risk scoring** — LST loops, stablecoin loops, and volatile positions are scored differently (a jitoSOL/SOL loop at HF 1.3 is not the same risk as a SOL/USDC borrow at HF 1.3)
-- **Health Factor history chart** — 24h and 7d HF trends per protocol
-- **Telegram alerts** — fires on HIGH and CRITICAL risk, with smart deduplication to avoid spam
+- **Multi-protocol positions** — MarginFi and Kamino lending + Jupiter/Drift perp positions in a single view
+- **Position-type aware risk scoring** — LST loops, stablecoin loops, and volatile positions scored differently (a jitoSOL/SOL loop at HF 1.3 is not the same risk as a SOL/USDC borrow at HF 1.3)
+- **Perp liquidation distance** — shows distance to liquidation and leverage for open perp positions
+- **Configurable thresholds** — set your own warning and critical levels for lending HF and perp liquidation distance; dashboard colours update accordingly
 - **AI risk analysis** — Claude-powered analysis of your position, collateral composition, and price trends (4/day free)
+- **AI analysis history** — all past analyses stored and browsable per wallet
+- **Health Factor history chart** — 24h and 7d HF trends per protocol
 - **Wallet-signature auth** — sign once, no passwords, no custodial risk
-- **Price trend context** — Birdeye OHLCV data feeds the AI analysis with 24h price momentum
 
 ---
 
@@ -23,22 +32,23 @@ DeFi lending is powerful but unforgiving — most platforms give you a health fa
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     Dashboard (React)                   │
-│  Landing · ConnectWallet · Dashboard · HfChart          │
-│  PositionCard · RiskScore · AiAnalysis · AlertHistory   │
+│  Landing · ConnectWallet · Portfolio · Markets          │
+│  PositionCard · PerpPositionCard · RiskScore            │
+│  AiAnalysis · AI History · Settings                     │
 └────────────────────┬────────────────────────────────────┘
-                     │ HTTPS (vrynn.xyz/api)
+                     │ HTTPS (/api)
 ┌────────────────────▼────────────────────────────────────┐
 │                  Express API Server                     │
 │  /portfolio  /positions  /analyze  /alerts              │
-│  /settings   /telegram/link  /hf-history                │
+│  /settings   /hf-history  /markets                      │
 │                                                         │
-│  Monitor loop (node-cron, 60s)                          │
-│    → MarginFi SDK  →  Kamino REST API                   │
-│    → Birdeye OHLCV → Claude AI                          │
-│    → Telegram Bot                                       │
+│  MarginFi SDK  →  Kamino REST API                       │
+│  Jupiter Perps REST API                                 │
+│  Birdeye OHLCV → Claude AI                              │
 │                                                         │
 │  SQLite (vrynn.db)                                      │
-│    users · wallets · positions · alerts · ai_usage      │
+│    users · wallets · positions · ai_analyses            │
+│    wallet_settings · ai_usage                           │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -52,12 +62,11 @@ DeFi lending is powerful but unforgiving — most platforms give you a health fa
 | Wallet | `@solana/wallet-adapter-react`, WalletMultiButton |
 | Backend | Node.js (ESM), Express 5 |
 | Database | SQLite via `better-sqlite3` |
-| Scheduling | `node-cron` |
 | MarginFi | `@mrgnlabs/marginfi-client-v2` |
 | Kamino | Kamino Lending REST API |
+| Jupiter Perps | Jupiter Perpetuals REST API |
 | Prices | Birdeye OHLCV API |
 | AI | Anthropic Claude API |
-| Alerts | Telegram Bot API |
 | RPC | Helius (with batch-request serialisation for free tier) |
 
 ---
@@ -70,12 +79,11 @@ DeFi lending is powerful but unforgiving — most platforms give you a health fa
 - A Helius RPC API key (free tier works)
 - A Birdeye API key
 - An Anthropic API key
-- A Telegram bot token + chat ID (optional — alerts only)
 
 ### 1. Install dependencies
 
 ```bash
-# Root (shared)
+# Server
 npm install
 
 # Dashboard
@@ -84,15 +92,12 @@ cd dashboard && npm install
 
 ### 2. Configure the server
 
-Copy `server/config.js` and fill in your keys — or set the following environment variables:
+Set the following environment variables (or edit `server/config.js`):
 
 ```
 HELIUS_RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
 BIRDEYE_API_KEY=your_birdeye_key
 ANTHROPIC_API_KEY=your_anthropic_key
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
-MONITOR_INTERVAL_SECONDS=60
 ADMIN_SECRET=your_admin_secret
 ```
 
@@ -111,14 +116,14 @@ cd dashboard && npm run dev
 ```bash
 cd dashboard && npm run build
 # Serve dist/ behind Nginx or any static host
-# Point /api/* to the Express server
+# Proxy /api/* to the Express server
 ```
 
 ---
 
 ## Risk Scoring
 
-Health Factor tiers:
+### Lending (Health Factor)
 
 | HF | Risk Level |
 |---|---|
@@ -137,18 +142,11 @@ Position-type weights applied to the raw score:
 | `volatile_borrow` | 1.0× | Full risk from borrowed token price pump |
 | `mixed` | 1.0× | Both sides exposed |
 
----
+### Perps (Liquidation Distance)
 
-## Telegram Alerts
+Risk is shown as the percentage distance between current price and liquidation price. Thresholds are user-configurable in Settings.
 
-Vrynn sends alerts when:
-- Risk level is HIGH or CRITICAL
-- Risk level changes in either direction
-- Health Factor moves more than 0.05 within the same risk tier
-
-To link your Telegram account to your wallet:
-1. Click "Connect Telegram" in the dashboard
-2. Start the bot and send the generated code
+Default thresholds: warning at 10%, critical at 5%.
 
 ---
 
@@ -157,9 +155,10 @@ To link your Telegram account to your wallet:
 On-demand via the "Analyse Risk" button. The AI receives:
 - All active positions with health factors and token balances
 - Position type classification and risk context
-- 24h price trends for your collateral and borrow tokens (Birdeye OHLCV)
+- 24h price trends for collateral and borrow tokens (Birdeye OHLCV)
 
-Free tier: 4 analyses per day per wallet. Resets at midnight UTC.
+Free tier: 4 analyses per day per wallet, resets at midnight UTC.
+Past analyses are stored and viewable in the AI History tab.
 
 ---
 
@@ -171,56 +170,66 @@ vrynn-protocol/
 │   ├── index.js          # Express app entry point
 │   ├── config.js         # Environment config
 │   ├── db.js             # SQLite schema + queries
-│   ├── monitor.js        # 60s polling loop
 │   ├── ai.js             # Claude integration
-│   ├── alerts.js         # Telegram alert dispatch
 │   ├── birdeye.js        # Price trend data
-│   ├── priceMonitor.js   # Builds price context for AI
 │   ├── rpc.js            # Solana connection
-│   ├── twitter.js        # Optional Twitter integration
 │   ├── api/
 │   │   ├── routes.js     # All API endpoints
 │   │   └── auth.js       # Wallet signature verification
 │   └── protocols/
 │       ├── marginfi.js   # MarginFi SDK integration
-│       └── kamino.js     # Kamino REST API integration
+│       ├── kamino.js     # Kamino REST API integration
+│       ├── jupiter.js    # Jupiter Perps integration
+│       └── markets.js    # Lending rate aggregator
 ├── dashboard/
 │   └── src/
 │       ├── pages/
 │       │   ├── Landing.jsx
-│       │   └── Dashboard.jsx
+│       │   ├── Dashboard.jsx
+│       │   └── views/
+│       │       ├── PortfolioView.jsx
+│       │       ├── MarketsView.jsx
+│       │       ├── AlertsView.jsx   # AI analysis history
+│       │       └── SettingsView.jsx
 │       ├── components/
 │       │   ├── PositionCard.jsx
+│       │   ├── PerpPositionCard.jsx
 │       │   ├── RiskScore.jsx
 │       │   ├── HealthGauge.jsx
 │       │   ├── AiAnalysis.jsx
 │       │   ├── HfChart.jsx
-│       │   ├── AlertHistory.jsx
 │       │   ├── Settings.jsx
-│       │   ├── TelegramLink.jsx
 │       │   └── ConnectWallet.jsx
 │       └── hooks/
 │           └── useVrynn.js
-└── landing/              # Static marketing page (optional)
 ```
 
 ---
 
 ## Roadmap
 
+This is an early-stage project. Direction may shift as the product evolves.
+
 | Status | Feature |
 |---|---|
-| ✅ | MarginFi lending monitoring |
-| ✅ | Kamino lending monitoring |
-| ✅ | Telegram alerts (HIGH / CRITICAL) |
+| ✅ | MarginFi lending positions |
+| ✅ | Kamino lending positions |
+| ✅ | Jupiter / Drift perp positions |
+| ✅ | Position-type aware risk scoring |
 | ✅ | AI risk analysis — 4/day free |
+| ✅ | AI analysis history |
 | ✅ | Health Factor history chart (24h / 7d) |
-| ✅ | Position-type aware risk scoring (LST loop, stablecoin loop, volatile) |
+| ✅ | Configurable dashboard thresholds |
 | 🔜 | Liquidation price calculator + stress test slider |
-| 🔜 | Drift Protocol perp position monitoring |
-| 🔜 | Live token prices for positions |
-| 🔜 | Recent on-chain liquidations feed |
-| 🔜 | Demo mode — explore the dashboard without connecting a wallet |
+| 🔜 | Live token prices in position cards |
+| 🔜 | Demo mode — explore without connecting a wallet |
+| 🔜 | Additional protocol support |
+
+---
+
+## Disclaimer
+
+Vrynn is an informational tool only. Nothing on this platform constitutes financial advice. Always do your own research before making any financial decisions.
 
 ---
 
