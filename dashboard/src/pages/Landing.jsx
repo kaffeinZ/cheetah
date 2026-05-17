@@ -32,21 +32,9 @@ function formatPrice(p) {
   return `$${p.toFixed(4)}`
 }
 
-function UtilBar({ pct, color }) {
-  return (
-    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden mt-1">
-      <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: color }} />
-    </div>
-  )
-}
 
 function PerpsCard({ p }) {
   const tokenColor = TOKEN_COLORS[p.token] ?? '#888'
-  const total    = p.longUtilization + p.shortUtilization
-  const longPct  = total > 0 ? (p.longUtilization / total) * 100 : 50
-  const shortPct = 100 - longPct
-  const biasLabel = longPct > 60 ? 'Long-heavy' : longPct < 40 ? 'Short-heavy' : 'Balanced'
-  const biasColor = longPct > 60 ? '#2ecc00' : longPct < 40 ? '#e0007a' : '#888'
 
   return (
     <a href={PERPS_URLS[p.token] ?? 'https://jup.ag/perps'} target="_blank" rel="noopener noreferrer"
@@ -72,18 +60,24 @@ function PerpsCard({ p }) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5 relative">
-        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
-          <span style={{ color: '#2ecc00' }}>Long {p.longUtilization.toFixed(1)}%</span>
-          <span style={{ color: '#e0007a' }}>Short {p.shortUtilization.toFixed(1)}%</span>
+      <div className="flex flex-col gap-2 relative">
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+            <span style={{ color: '#2ecc00' }}>Long pool</span>
+            <span style={{ color: '#2ecc00' }}>{p.longUtilization.toFixed(1)}% utilized</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, p.longUtilization)}%`, background: '#2ecc00' }} />
+          </div>
         </div>
-        <div className="w-full h-2 rounded-full overflow-hidden flex bg-muted">
-          <div className="h-full transition-all" style={{ width: `${longPct}%`, background: '#2ecc00' }} />
-          <div className="h-full transition-all" style={{ width: `${shortPct}%`, background: '#e0007a' }} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold" style={{ color: biasColor }}>{biasLabel}</span>
-          <span className="text-[10px] text-muted-foreground">{longPct.toFixed(0)}% / {shortPct.toFixed(0)}%</span>
+        <div className="flex flex-col gap-1">
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
+            <span style={{ color: '#e0007a' }}>Short pool</span>
+            <span style={{ color: '#e0007a' }}>{p.shortUtilization.toFixed(1)}% utilized</span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, p.shortUtilization)}%`, background: '#e0007a' }} />
+          </div>
         </div>
       </div>
 
