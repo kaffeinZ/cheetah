@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 
 
-export default function RiskScore({ score, totalCollateralUsd, totalBorrowUsd, perpExposureUsd, totalUnrealizedPnl, worstHealthFactor, positions }) {
+export default function RiskScore({ score, totalCollateralUsd, totalBorrowUsd, perpExposureUsd, totalUnrealizedPnl, worstHealthFactor, worstPositionType, positions, settings }) {
   const color =
     score <= 20 ? '#2ecc00' :
     score <= 50 ? '#00c8e0' :
@@ -19,6 +19,15 @@ export default function RiskScore({ score, totalCollateralUsd, totalBorrowUsd, p
   const netValue     = (totalCollateralUsd ?? 0) - (totalBorrowUsd ?? 0) + (totalUnrealizedPnl ?? 0)
   const pnlSign      = (totalUnrealizedPnl ?? 0) >= 0 ? '+' : ''
   const protocolsSet = [...new Set(positions?.map(p => p.protocol) ?? [])]
+  const perpPositions    = positions?.filter(p => p.positionType === 'perp') ?? []
+  const maxLeverage      = perpPositions.length ? Math.max(...perpPositions.map(p => p.leverage ?? 0)) : null
+  const perpAlertPct     = settings?.perp_alert_pct    ?? 10
+  const perpCriticalPct  = settings?.perp_critical_pct ?? 5
+  const liqDistancePct   = worstPositionType === 'perp' && worstHealthFactor ? worstHealthFactor * 5 : null
+  const liqDistanceColor = liqDistancePct === null ? '#2ecc00'
+    : liqDistancePct <= perpCriticalPct  ? '#e0007a'
+    : liqDistancePct <= perpAlertPct     ? '#e06000'
+    : '#2ecc00'
 
   const radius       = 40
   const circumference = Math.PI * radius
@@ -66,24 +75,34 @@ export default function RiskScore({ score, totalCollateralUsd, totalBorrowUsd, p
             </div>
 
             <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
-              <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Collateral</p>
-              <p className="text-xl sm:text-2xl font-black" style={{ color: '#00c8e0' }}>${(totalCollateralUsd ?? 0).toFixed(2)}</p>
-              <p className="text-muted-foreground text-xs">total deposited</p>
+              <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Debt</p>
+              <p className="text-xl sm:text-2xl font-black" style={{ color: '#00c8e0' }}>${(totalBorrowUsd ?? 0).toFixed(2)}</p>
+              <p className="text-muted-foreground text-xs">total borrowed</p>
             </div>
 
             <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
               <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Perp Exposure</p>
               <p className="text-xl sm:text-2xl font-black" style={{ color: '#e0007a' }}>${(perpExposureUsd ?? 0).toFixed(2)}</p>
-              <p className="text-muted-foreground text-xs">total notional</p>
+              <p className="text-muted-foreground text-xs">{maxLeverage ? `${maxLeverage.toFixed(1)}x leverage` : 'total notional'}</p>
             </div>
 
-            <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
-              <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Worst HF</p>
-              <p className="text-xl sm:text-2xl font-black" style={{ color: worstHealthFactor && worstHealthFactor < 1.5 ? '#e06000' : '#2ecc00' }}>
-                {worstHealthFactor ? worstHealthFactor.toFixed(3) : '—'}
-              </p>
-              <p className="text-muted-foreground text-xs">{protocolsSet.join(' · ') || 'no protocols'}</p>
-            </div>
+            {worstPositionType === 'perp' ? (
+              <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Liq. Distance</p>
+                <p className="text-xl sm:text-2xl font-black" style={{ color: liqDistanceColor }}>
+                  {liqDistancePct !== null ? `${liqDistancePct.toFixed(1)}%` : '—'}
+                </p>
+                <p className="text-muted-foreground text-xs">{protocolsSet.join(' · ') || 'no protocols'}</p>
+              </div>
+            ) : (
+              <div className="flex flex-col justify-center gap-1 p-3 sm:p-5">
+                <p className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Worst HF</p>
+                <p className="text-xl sm:text-2xl font-black" style={{ color: worstHealthFactor && worstHealthFactor < 1.5 ? '#e06000' : '#2ecc00' }}>
+                  {worstHealthFactor ? worstHealthFactor.toFixed(3) : '—'}
+                </p>
+                <p className="text-muted-foreground text-xs">{protocolsSet.join(' · ') || 'no protocols'}</p>
+              </div>
+            )}
 
           </div>
         </div>

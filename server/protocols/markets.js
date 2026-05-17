@@ -24,7 +24,7 @@ export async function getMarkets() {
   ]
 
   const filtered = pools
-    .filter(p => p.supplyApy >= 0.1)
+    .filter(p => p.supplyApy >= 0.1 && !(p.tvlUsd === null && p.supplyApy > 200))
     .sort((a, b) => b.supplyApy - a.supplyApy)
     .slice(0, 50)
 

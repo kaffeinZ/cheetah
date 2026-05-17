@@ -13,10 +13,13 @@
  * Both patches are applied lazily on first call and are idempotent.
  */
 
+import { createRequire } from 'module';
 import { BorshAccountsCoder } from '@coral-xyz/anchor';
 import { MarginfiClient, getConfig } from '@mrgnlabs/marginfi-client-v2';
 import { Keypair } from '@solana/web3.js';
 import { connection } from '../rpc.js';
+
+const _require = createRequire(import.meta.url);
 
 // ── Patches (applied once) ────────────────────────────────────────────────
 
@@ -26,8 +29,25 @@ function applyPatches() {
   if (_patched) return;
   _patched = true;
 
-  // Patch 1: silence unrecognised Borsh oracle variants so unknown bank types
-  // don't crash the full bank.all() scan; SDK's assetTag filter removes them.
+  // Patch 1: the MarginFi SDK bundles its own nested @coral-xyz/anchor, so the
+  // top-level BorshAccountsCoder import above doesn't reach the code that actually
+  // runs. Require the nested copy directly and patch decode() there instead.
+  // This silences unrecognised oracle Union variants (buffer-layout throws on unknown
+  // discriminators); the SDK's own assetTag filter then drops those broken entries.
+  try {
+    const mgrnCoder = _require(
+      '@mrgnlabs/marginfi-client-v2/node_modules/@coral-xyz/anchor/dist/cjs/coder/borsh/accounts.js'
+    );
+    if (mgrnCoder?.BorshAccountsCoder) {
+      const _origDecode = mgrnCoder.BorshAccountsCoder.prototype.decode;
+      mgrnCoder.BorshAccountsCoder.prototype.decode = function (name, data) {
+        try { return _origDecode.call(this, name, data); }
+        catch { return { config: { assetTag: 999 } }; }
+      };
+    }
+  } catch { /* nested path may differ across SDK versions — skip */ }
+
+  // Patch 2 (top-level copy, defence-in-depth):
   const origDecode = BorshAccountsCoder.prototype.decode;
   BorshAccountsCoder.prototype.decode = function (name, data) {
     try {
@@ -37,7 +57,7 @@ function applyPatches() {
     }
   };
 
-  // Patch 2: serialise _rpcBatchRequest calls so Helius free tier doesn't 403.
+  // Patch 3: serialise _rpcBatchRequest calls so Helius free tier doesn't 403.
   const origBatch = connection._rpcBatchRequest.bind(connection);
   connection._rpcBatchRequest = async (requests) => {
     // If only one request, let the original path handle it (faster).

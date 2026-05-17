@@ -22,6 +22,8 @@ export default function PortfolioView({ portfolio, loading, error, onRefresh }) 
         perpExposureUsd={portfolio.perpExposureUsd}
         totalUnrealizedPnl={portfolio.totalUnrealizedPnl}
         worstHealthFactor={portfolio.worstHealthFactor}
+        worstPositionType={portfolio.worstPositionType}
+        settings={portfolio.settings}
         positions={portfolio.positions}
       />
 
@@ -39,8 +41,8 @@ export default function PortfolioView({ portfolio, loading, error, onRefresh }) 
             .sort((a) => (a.positionType === 'perp' ? -1 : 1))
             .map((p, i) =>
               p.positionType === 'perp'
-                ? <PerpPositionCard key={i} position={p} />
-                : <PositionCard key={i} position={p} />
+                ? <PerpPositionCard key={i} position={p} settings={portfolio.settings} />
+                : <PositionCard key={i} position={p} settings={portfolio.settings} />
             )
           }
         </div>

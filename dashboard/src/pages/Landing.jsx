@@ -8,7 +8,6 @@ import { useMarkets } from '../hooks/useMarkets'
 import { usePerps }   from '../hooks/usePerps'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
 import { ExternalLink } from 'lucide-react'
@@ -21,29 +20,6 @@ function apyColor(apy) {
   if (apy >= 5)  return '#00c8e0'
   if (apy >= 2)  return '#e06000'
   return '#888'
-}
-
-function LandingRateRow({ m, valueKey, colorFn }) {
-  const color = PROTOCOL_COLOR[m.protocol] ?? '#888'
-  const val   = m[valueKey]
-  return (
-    <a href={m.url} target="_blank" rel="noopener noreferrer"
-      className="flex items-center justify-between px-4 py-2.5 border-b border-border last:border-0 hover:bg-muted/40 transition-colors group">
-      <div className="flex items-center gap-2">
-        <span className="font-semibold text-sm">{m.token ?? '—'}</span>
-        <Badge className="text-[10px] px-1.5 py-0 font-bold uppercase"
-          style={{ background: color + '22', color, border: 'none' }}>
-          {m.protocol === 'marginfi' ? 'mrgn' : m.market ?? m.protocol}
-        </Badge>
-      </div>
-      <div className="flex items-center gap-1">
-        <span className="font-black tabular-nums text-sm" style={{ color: colorFn(val) }}>
-          {val > 0.01 ? `${val.toFixed(2)}%` : '—'}
-        </span>
-        <ExternalLink size={11} className="opacity-0 group-hover:opacity-50 text-muted-foreground" />
-      </div>
-    </a>
-  )
 }
 
 const TOKEN_ICONS  = { SOL: '◎', BTC: '₿', ETH: 'Ξ' }
@@ -78,7 +54,6 @@ function PerpsCard({ p }) {
       <div className="absolute inset-0 opacity-5 blur-2xl pointer-events-none"
         style={{ background: `radial-gradient(circle at 20% 20%, ${tokenColor}, transparent 60%)` }} />
 
-      {/* Header: token + price + 24h change */}
       <div className="flex items-center justify-between relative">
         <div className="flex items-center gap-2">
           <span className="text-xl font-black" style={{ color: tokenColor }}>{TOKEN_ICONS[p.token] ?? p.token[0]}</span>
@@ -97,7 +72,6 @@ function PerpsCard({ p }) {
         </div>
       </div>
 
-      {/* Market bias bar */}
       <div className="flex flex-col gap-1.5 relative">
         <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider">
           <span style={{ color: '#2ecc00' }}>Long {p.longUtilization.toFixed(1)}%</span>
@@ -113,7 +87,6 @@ function PerpsCard({ p }) {
         </div>
       </div>
 
-      {/* Borrow rates */}
       <div className="grid grid-cols-2 gap-4 relative">
         <div>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Long borrow</p>
@@ -136,45 +109,17 @@ function PerpsCard({ p }) {
 }
 
 const STEPS = [
-  { n: '1', color: '#00c8e0', title: 'Connect your wallet', desc: 'Sign a message to verify ownership — no private keys ever leave your device.' },
-  { n: '2', color: '#7000e0', title: 'We monitor your positions', desc: 'MarginFi, Kamino and Jupiter Perps monitored 24/7 — lending health factors and perp liquidation distances in one place.' },
-  { n: '3', color: '#e0007a', title: 'Get alerted before liquidation', desc: 'Instant Telegram alerts when your health factor drops into danger.' },
+  { n: '1', color: '#00c8e0', title: 'Connect your wallet',     desc: 'Sign a message to verify ownership — no private keys, no custody, nothing leaves your device.' },
+  { n: '2', color: '#7000e0', title: 'See your full picture',   desc: 'All your lending positions and perpetual trades across MarginFi, Kamino and Jupiter in one unified view.' },
+  { n: '3', color: '#e0007a', title: 'Run AI risk analysis',    desc: 'On demand: AI reads your positions and explains your risk in plain English, including what to watch out for.' },
 ]
 
 const FEATURES = [
-  { icon: '🤖', color: '#7000e0', title: 'AI Risk Analysis',      desc: 'DeepSeek analyses your positions and explains your risk in plain English.' },
-  { icon: '⚡', color: '#00c8e0', title: 'Real-Time Monitoring',   desc: 'Health factors and perp liquidation distances tracked every 60 seconds across all your positions.' },
-  { icon: '📡', color: '#e0007a', title: 'Telegram Alerts',        desc: 'Instant notifications sent directly to your Telegram when risk level changes.' },
-  { icon: '📈', color: '#7000e0', title: 'Perps Monitoring',       desc: 'Track your Jupiter leverage positions with real-time liquidation distance alerts and PnL.' },
-  { icon: '🔗', color: '#e06000', title: 'Multi-Protocol',         desc: 'MarginFi, Kamino and Jupiter Perps supported today. More protocols coming soon.' },
-]
-
-const PLANS = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    color: '#00c8e0',
-    features: ['1 wallet monitored', 'Telegram alerts', 'MarginFi + Kamino + Jupiter Perps', '60s polling interval', '4 AI analyses per day'],
-    cta: 'Get Started',
-    highlight: false,
-  },
-  {
-    name: 'Plus',
-    price: null,
-    color: '#7000e0',
-    features: ['3 wallets monitored', 'All Free features', '30s polling interval', '10 AI analyses per day', 'More protocols'],
-    cta: 'Coming Soon',
-    highlight: true,
-  },
-  {
-    name: 'Pro',
-    price: null,
-    color: '#e0007a',
-    features: ['Unlimited wallets', 'All Plus features', '15s polling interval', 'Unlimited AI analyses', 'Priority alerts'],
-    cta: 'Coming Soon',
-    highlight: false,
-  },
+  { icon: '📊', color: '#00c8e0', title: 'Unified Portfolio View',  desc: 'Lending health factors, perp liquidation distances and unrealised PnL — all in one place the moment you connect.' },
+  { icon: '🤖', color: '#7000e0', title: 'AI Risk Analysis',        desc: 'On-demand AI reads your live positions and gives you a plain-English breakdown of your current risk exposure.' },
+  { icon: '📈', color: '#e0007a', title: 'Jupiter Perps Tracking',  desc: 'Track leverage positions with live liquidation distance, PnL, and entry vs current price at a glance.' },
+  { icon: '💰', color: '#2ecc00', title: 'Live DeFi Rates',         desc: 'Best supply and borrow rates across MarginFi and Kamino updated every 5 minutes — know where your money works hardest.' },
+  { icon: '🔗', color: '#e06000', title: 'Multi-Protocol',          desc: 'MarginFi, Kamino and Jupiter Perps supported today. More protocols and features coming as the platform grows.' },
 ]
 
 export default function Landing() {
@@ -198,9 +143,9 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
 
-      {/* Beta disclaimer */}
-      <div className="sticky top-0 z-50 bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-700">
-        Vrynn is in beta. Do not rely solely on this service for liquidation alerts — always monitor your positions independently.
+      {/* Notice bar */}
+      <div className="sticky top-0 z-50 bg-muted border-b border-border px-4 py-2 text-center text-xs text-muted-foreground">
+        Vrynn is in active development — the product is still taking shape.
       </div>
 
       {/* Nav */}
@@ -218,13 +163,13 @@ export default function Landing() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6">
         <Badge variant="outline" style={{ color: '#00c8e0', borderColor: '#00c8e040' }} className="uppercase tracking-widest text-xs px-4 py-1.5">
-          Solana DeFi Protection
+          Solana DeFi Dashboard
         </Badge>
         <h1 className="text-5xl sm:text-6xl font-black leading-tight">
           Your Solana DeFi <span className="gradient-text">Intelligence Hub.</span>
         </h1>
         <TextGenerateEffect
-          words="Live lending rates, position health, and AI risk analysis across MarginFi, Kamino and Jupiter — everything you need to stay informed before the market moves."
+          words="Live positions, health factors and risk across Solana DeFi."
           className="text-muted-foreground max-w-xl font-normal text-lg"
           filter={false}
           duration={0.3}
@@ -267,8 +212,8 @@ export default function Landing() {
                 const topLend   = [...markets].sort((a,b) => b.supplyApy - a.supplyApy)[0]
                 const topBorrow = [...markets].filter(m => m.borrowApy > 0.01).sort((a,b) => a.borrowApy - b.borrowApy)[0]
                 return [
-                  { m: topLend,   label: 'Highest Supply APY',  valueKey: 'supplyApy',  color: '#2ecc00' },
-                  { m: topBorrow, label: 'Cheapest Borrow APY', valueKey: 'borrowApy',  color: '#00c8e0' },
+                  { m: topLend,   label: 'Highest Supply APY',  valueKey: 'supplyApy', color: '#2ecc00' },
+                  { m: topBorrow, label: 'Cheapest Borrow APY', valueKey: 'borrowApy', color: '#00c8e0' },
                 ].map(({ m, label, valueKey, color }) => m && (
                   <a key={label} href={m.url} target="_blank" rel="noopener noreferrer"
                     className="relative p-6 rounded-xl border border-border bg-card hover:bg-muted/60 transition-colors group overflow-hidden">
@@ -290,8 +235,8 @@ export default function Landing() {
             {/* Table */}
             <div className="grid sm:grid-cols-2 gap-4">
               {[
-                { title: '↑ Best to Lend',        color: '#2ecc00', list: [...markets].sort((a,b) => b.supplyApy - a.supplyApy).slice(0,6), key: 'supplyApy', colorFn: apyColor },
-                { title: '↓ Cheapest to Borrow',  color: '#00c8e0', list: [...markets].filter(m => m.borrowApy > 0.01).sort((a,b) => a.borrowApy - b.borrowApy).slice(0,6), key: 'borrowApy',
+                { title: '↑ Best to Lend',       color: '#2ecc00', list: [...markets].sort((a,b) => b.supplyApy - a.supplyApy).slice(0,6), key: 'supplyApy', colorFn: apyColor },
+                { title: '↓ Cheapest to Borrow', color: '#00c8e0', list: [...markets].filter(m => m.borrowApy > 0.01).sort((a,b) => a.borrowApy - b.borrowApy).slice(0,6), key: 'borrowApy',
                   colorFn: v => v <= 3 ? '#2ecc00' : v <= 7 ? '#00c8e0' : v <= 12 ? '#e06000' : '#e0007a' },
               ].map(({ title, color, list, key, colorFn }) => (
                 <div key={title} className="rounded-xl border border-border overflow-hidden bg-card">
@@ -362,7 +307,7 @@ export default function Landing() {
 
       {/* Features */}
       <section className="max-w-5xl mx-auto px-6 py-20">
-        <h2 className="text-3xl font-black text-center mb-12">Everything you need</h2>
+        <h2 className="text-3xl font-black text-center mb-12">What you get</h2>
         <div className="grid sm:grid-cols-2 gap-4">
           {FEATURES.map(f => (
             <Card key={f.title} style={{ borderLeft: `4px solid ${f.color}` }}>
@@ -380,55 +325,10 @@ export default function Landing() {
 
       <Separator />
 
-      {/* Pricing */}
-      <section className="py-20 bg-muted/40">
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="text-3xl font-black text-center mb-12">Pricing</h2>
-          <div className="grid sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {PLANS.map(p => (
-              <Card key={p.name} className={`relative flex flex-col overflow-visible ${p.highlight ? 'ring-2' : ''}`}
-                style={{ borderTop: `4px solid ${p.color}`, ...(p.highlight ? { ringColor: p.color } : {}) }}>
-                {p.highlight && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge style={{ background: p.color, color: 'white', border: 'none' }}>Most Popular</Badge>
-                  </div>
-                )}
-                <CardContent className="flex flex-col gap-4 flex-1 pt-5">
-                  <div>
-                    <p className="text-muted-foreground text-sm mb-1 font-medium">{p.name}</p>
-                    {p.price ? (
-                      <div className="text-4xl font-black">
-                        {p.price} <span className="text-muted-foreground text-sm font-normal">/ forever</span>
-                      </div>
-                    ) : (
-                      <div className="text-2xl font-black" style={{ color: p.color }}>Coming Soon</div>
-                    )}
-                  </div>
-                  <ul className="flex flex-col gap-2 flex-1">
-                    {p.features.map(f => (
-                      <li key={f} className="text-muted-foreground text-sm flex items-center gap-2">
-                        <span className="font-bold" style={{ color: p.color }}>✓</span> {f}
-                      </li>
-                    ))}
-                  </ul>
-                  {p.cta === 'Get Started' ? (
-                    <ConnectWallet onAuth={handleAuth} compact />
-                  ) : (
-                    <Button disabled variant="secondary" className="w-full mt-auto">{p.cta}</Button>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <Separator />
-
       {/* Bottom CTA */}
       <section className="max-w-5xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-6">
-        <h2 className="text-4xl font-black">Start exploring <span className="gradient-text">for free</span></h2>
-        <p className="text-muted-foreground text-lg">Connect your wallet and see your positions, live rates, and risk analysis in seconds.</p>
+        <h2 className="text-4xl font-black">See your portfolio <span className="gradient-text">right now</span></h2>
+        <p className="text-muted-foreground text-lg">Connect your wallet — no signup, no permissions. Just your live positions and risk in one view.</p>
         <ConnectWallet onAuth={handleAuth} />
       </section>
 
@@ -437,8 +337,7 @@ export default function Landing() {
       <footer className="px-6 py-6 flex flex-col items-center gap-2">
         <p className="text-muted-foreground text-sm">© 2026 Vrynn Protocol · vrynn.xyz</p>
         <p className="text-muted-foreground text-xs max-w-xl text-center">
-          Vrynn is in early beta. Alerts are informational only and do not constitute financial advice.
-          Always monitor your own positions. We are not responsible for any liquidations or losses.
+          Vrynn is an informational tool only. Data shown is for reference — always verify your positions directly on-chain. Not financial advice.
         </p>
       </footer>
 

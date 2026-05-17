@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 const NAV = [
   { id: 'portfolio', label: 'Portfolio',  icon: LayoutDashboard },
   { id: 'rates',     label: 'Live Rates', icon: TrendingUp },
-  { id: 'alerts',    label: 'Alerts',     icon: Bell },
+  { id: 'alerts',    label: 'AI History', icon: Bell },
   { id: 'settings',  label: 'Settings',   icon: Settings2 },
 ]
 

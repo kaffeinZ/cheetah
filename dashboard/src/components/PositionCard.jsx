@@ -24,9 +24,16 @@ function liquidationInfo(healthFactor, collateralUsd, borrowUsd) {
   return { dropPct, collateralNeeded: Math.max(0, collateralNeeded) }
 }
 
-export default function PositionCard({ position }) {
+export default function PositionCard({ position, settings }) {
   const { protocol, collateralUsd, borrowUsd, healthFactor, riskLevel, balances, positionType } = position
-  const style = RISK_STYLE[riskLevel] ?? { accent: '#00c8e0', glow: '' }
+  const hfWarn = settings?.hf_warning ?? 1.5
+  const hfCrit = Math.max(1.0, hfWarn - 0.3)
+  const effectiveRisk = !healthFactor ? riskLevel
+    : healthFactor < hfCrit ? 'CRITICAL'
+    : healthFactor < hfWarn ? 'HIGH'
+    : healthFactor < hfWarn * 1.5 ? 'WARNING'
+    : 'SAFE'
+  const style = RISK_STYLE[effectiveRisk] ?? { accent: '#00c8e0', glow: '' }
   const info = liquidationInfo(healthFactor, collateralUsd, borrowUsd)
   const deposits = balances?.filter(b => b.assetUsd > 0.01) ?? []
   const borrows  = balances?.filter(b => b.liabilityUsd > 0.01) ?? []
@@ -42,7 +49,7 @@ export default function PositionCard({ position }) {
             )}
           </div>
           <Badge style={{ background: style.accent + '25', color: style.accent, border: 'none' }}>
-            {riskLevel}
+            {effectiveRisk}
           </Badge>
         </div>
       </CardHeader>
@@ -65,7 +72,7 @@ export default function PositionCard({ position }) {
           </div>
         </div>
 
-        <HealthGauge healthFactor={healthFactor} riskLevel={riskLevel} positionType={positionType} />
+        <HealthGauge healthFactor={healthFactor} riskLevel={effectiveRisk} positionType={positionType} />
 
         {info && riskLevel !== 'SAFE' && (
           <div className="bg-muted rounded-sm p-3 flex flex-col gap-1 border border-border">

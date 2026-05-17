@@ -11,6 +11,7 @@ import {
   getLatestPositions,
   savePosition,
   getAlerts,
+  getAiAnalysisHistory,
   getLatestAiAnalysis,
   getWalletSettings,
   upsertWalletSettings,
@@ -135,7 +136,14 @@ function computeRiskScore(positions) {
 
   // Score each position individually then take the worst adjusted score
   const scores = activePositions.map(p => {
-    const raw    = Math.max(0, Math.min(100, Math.round((3.0 - p.healthFactor) / 2.0 * 100)));
+    let raw;
+    if (p.positionType === 'perp') {
+      // Leveraged perps: 100 - distancePct * 2 (10.5% away → 79 HIGH, 25% → 50 MODERATE)
+      const distancePct = p.healthFactor * 5;
+      raw = Math.max(0, Math.min(100, Math.round(100 - distancePct * 2.5)));
+    } else {
+      raw = Math.max(0, Math.min(100, Math.round((3.0 - p.healthFactor) / 2.0 * 100)));
+    }
     const weight = POSITION_TYPE_WEIGHT[p.positionType] ?? 1.0;
     return Math.round(raw * weight);
   });
@@ -192,8 +200,12 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
   const totalBorrowUsd     = lendingPositions.reduce((sum, p) => sum + (p.borrowUsd ?? 0), 0);
   const perpExposureUsd    = perpPositions.reduce((sum, p) => sum + (p.sizeUsd ?? 0), 0);
   const totalUnrealizedPnl = perpPositions.reduce((sum, p) => sum + (p.unrealizedPnl ?? 0), 0);
-  const activeHfs          = positions.map((p) => p.healthFactor).filter((hf) => hf !== null);
-  const worstHealthFactor  = activeHfs.length ? Math.min(...activeHfs) : null;
+  const activePositionsWithHf = positions.filter((p) => p.healthFactor !== null);
+  const worstPosition      = activePositionsWithHf.length
+    ? activePositionsWithHf.reduce((w, p) => p.healthFactor < w.healthFactor ? p : w)
+    : null;
+  const worstHealthFactor  = worstPosition?.healthFactor ?? null;
+  const worstPositionType  = worstPosition?.positionType ?? null;
   res.json({
     positions,
     totalCollateralUsd,
@@ -201,6 +213,7 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
     perpExposureUsd,
     totalUnrealizedPnl,
     worstHealthFactor,
+    worstPositionType,
     riskScore:        computeRiskScore(positions),
     latestAiAnalysis: getLatestAiAnalysis(walletAddress),
     settings:         getWalletSettings(walletAddress),
@@ -208,9 +221,9 @@ router.get('/portfolio/:walletAddress', async (req, res) => {
 });
 
 // ── Per-wallet settings ────────────────────────────────────────────────────
-// POST /api/settings  body: { address, signature, hfWarning, hfCritical, alertsEnabled }
+// POST /api/settings  body: { address, signature, hfWarning, perpAlertPct, perpCriticalPct }
 router.post('/settings', (req, res) => {
-  const { address, signature, hfWarning, hfCritical, alertsEnabled, perpAlertPct } = req.body ?? {};
+  const { address, signature, hfWarning, perpAlertPct, perpCriticalPct } = req.body ?? {};
 
   if (!address || !signature) {
     return res.status(400).json({ error: 'address and signature are required' });
@@ -224,18 +237,18 @@ router.post('/settings', (req, res) => {
     return res.status(401).json({ error: 'signature verification failed' });
   }
 
-  const warn = parseFloat(hfWarning);
-  const crit = parseFloat(hfCritical);
+  const warn    = parseFloat(hfWarning);
+  const hfCrit  = Math.max(1.0, warn - 0.3);
 
-  if (isNaN(warn) || warn <= 0 || isNaN(crit) || crit <= 0 || crit >= warn) {
-    return res.status(400).json({ error: 'hfWarning must be > hfCritical > 0' });
+  if (isNaN(warn) || warn <= 0) {
+    return res.status(400).json({ error: 'hfWarning must be > 0' });
   }
 
   upsertWalletSettings(address, {
-    hfWarning:     warn,
-    hfCritical:    crit,
-    alertsEnabled: alertsEnabled !== false,
-    perpAlertPct:  parseFloat(perpAlertPct) || 10,
+    hfWarning:        warn,
+    hfCritical:       hfCrit,
+    perpAlertPct:     parseFloat(perpAlertPct)    || 10,
+    perpCriticalPct:  parseFloat(perpCriticalPct) || 5,
   });
 
   res.json({ ok: true, settings: getWalletSettings(address) });
@@ -263,11 +276,11 @@ router.post('/telegram/link', (req, res) => {
   res.json({ ok: true, code, expiresInSeconds: 600 });
 });
 
-// ── Alerts ─────────────────────────────────────────────────────────────────
-// GET /api/alerts/:walletAddress?limit=20
+// ── AI Analysis History ────────────────────────────────────────────────────
+// GET /api/alerts/:walletAddress?limit=50
 router.get('/alerts/:walletAddress', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit || '20', 10), 100);
-  res.json(getAlerts(req.params.walletAddress, limit));
+  const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+  res.json(getAiAnalysisHistory(req.params.walletAddress, limit));
 });
 
 // ── AI Risk Analysis ────────────────────────────────────────────────────────

@@ -36,6 +36,5 @@ app.listen(config.port, () => {
   console.log(`[api] listening on port ${config.port}`);
 });
 
-bot.start({ onStart: () => console.log('[telegram] bot polling started') });
-
-startMonitor();
+// Telegram bot and monitor are disabled — dashboard-only mode
+// startBot() and startMonitor() intentionally not called

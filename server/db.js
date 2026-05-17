@@ -60,11 +60,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_ai_wallet ON ai_analyses(wallet_address, created_at DESC);
 
   CREATE TABLE IF NOT EXISTS wallet_settings (
-    wallet_address TEXT    PRIMARY KEY,
-    hf_warning     REAL    NOT NULL DEFAULT 1.5,
-    hf_critical    REAL    NOT NULL DEFAULT 1.2,
-    alerts_enabled INTEGER NOT NULL DEFAULT 1,
-    updated_at     INTEGER NOT NULL DEFAULT (unixepoch())
+    wallet_address    TEXT    PRIMARY KEY,
+    hf_warning        REAL    NOT NULL DEFAULT 1.5,
+    hf_critical       REAL    NOT NULL DEFAULT 1.2,
+    alerts_enabled    INTEGER NOT NULL DEFAULT 0,
+    perp_alert_pct    REAL    NOT NULL DEFAULT 10,
+    perp_critical_pct REAL    NOT NULL DEFAULT 5,
+    updated_at        INTEGER NOT NULL DEFAULT (unixepoch())
   );
 
   CREATE TABLE IF NOT EXISTS telegram_link_codes (
@@ -79,6 +81,11 @@ db.exec(`
     reset_date     TEXT    NOT NULL DEFAULT (date('now'))
   );
 `);
+
+// Migrate existing DBs that predate perp_critical_pct column
+try {
+  db.prepare(`ALTER TABLE wallet_settings ADD COLUMN perp_critical_pct REAL NOT NULL DEFAULT 5`).run();
+} catch { /* column already exists */ }
 
 // ── users ──────────────────────────────────────────────────────────────────
 export function upsertUser(telegramId) {
@@ -162,6 +169,15 @@ export function saveAiAnalysis({ walletAddress, protocol, riskLevel, analysis, h
   `).run(walletAddress, protocol, riskLevel, analysis, healthFactor);
 }
 
+export function getAiAnalysisHistory(walletAddress, limit = 50) {
+  return db.prepare(`
+    SELECT * FROM ai_analyses
+    WHERE wallet_address = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(walletAddress, limit);
+}
+
 export function getLatestAiAnalysis(walletAddress) {
   return db.prepare(`
     SELECT a.* FROM ai_analyses a
@@ -185,20 +201,20 @@ export function getLastAnalysisHealthFactor(walletAddress, protocol) {
 // ── wallet_settings ────────────────────────────────────────────────────────
 export function getWalletSettings(walletAddress) {
   return db.prepare(`SELECT * FROM wallet_settings WHERE wallet_address = ?`).get(walletAddress)
-    ?? { wallet_address: walletAddress, hf_warning: 1.5, hf_critical: 1.2, alerts_enabled: 1, perp_alert_pct: 10 };
+    ?? { wallet_address: walletAddress, hf_warning: 1.5, hf_critical: 1.2, alerts_enabled: 0, perp_alert_pct: 10, perp_critical_pct: 5 };
 }
 
-export function upsertWalletSettings(walletAddress, { hfWarning, hfCritical, alertsEnabled, perpAlertPct }) {
+export function upsertWalletSettings(walletAddress, { hfWarning, hfCritical, perpAlertPct, perpCriticalPct }) {
   db.prepare(`
-    INSERT INTO wallet_settings(wallet_address, hf_warning, hf_critical, alerts_enabled, perp_alert_pct)
-    VALUES(?, ?, ?, ?, ?)
+    INSERT INTO wallet_settings(wallet_address, hf_warning, hf_critical, alerts_enabled, perp_alert_pct, perp_critical_pct)
+    VALUES(?, ?, ?, 0, ?, ?)
     ON CONFLICT(wallet_address) DO UPDATE SET
-      hf_warning     = excluded.hf_warning,
-      hf_critical    = excluded.hf_critical,
-      alerts_enabled = excluded.alerts_enabled,
-      perp_alert_pct = excluded.perp_alert_pct,
-      updated_at     = unixepoch()
-  `).run(walletAddress, hfWarning, hfCritical, alertsEnabled ? 1 : 0, perpAlertPct ?? 10);
+      hf_warning        = excluded.hf_warning,
+      hf_critical       = excluded.hf_critical,
+      perp_alert_pct    = excluded.perp_alert_pct,
+      perp_critical_pct = excluded.perp_critical_pct,
+      updated_at        = unixepoch()
+  `).run(walletAddress, hfWarning, hfCritical, perpAlertPct ?? 10, perpCriticalPct ?? 5);
 }
 
 // ── ai_usage ───────────────────────────────────────────────────────────────

@@ -8,12 +8,15 @@ const RISK_STYLE = {
   CRITICAL: { accent: '#e0007a', glow: 'glow-pink' },
 }
 
-export default function PerpPositionCard({ position }) {
-  const { protocol, token, side, leverage, entryPrice, currentPrice, liqPrice, distancePct, unrealizedPnl, sizeUsd, collateralUsd, riskLevel } = position
-  const style = RISK_STYLE[riskLevel] ?? RISK_STYLE.SAFE
+export default function PerpPositionCard({ position, settings }) {
+  const { protocol, token, side, leverage, entryPrice, currentPrice, liqPrice, distancePct, unrealizedPnl, sizeUsd, collateralUsd } = position
+  const alertPct    = settings?.perp_alert_pct    ?? 10
+  const critPct     = settings?.perp_critical_pct ?? 5
+  const effectiveRisk = distancePct <= critPct ? 'CRITICAL' : distancePct <= alertPct ? 'HIGH' : distancePct <= alertPct * 2 ? 'WARNING' : 'SAFE'
+  const style       = RISK_STYLE[effectiveRisk]
   const pnlPositive = unrealizedPnl >= 0
-  const barWidth = Math.max(0, Math.min(100, 100 - distancePct * 2))
-  const barColor = distancePct > 20 ? '#2ecc00' : distancePct > 10 ? '#e06000' : '#e0007a'
+  const barWidth    = Math.max(0, Math.min(100, 100 - distancePct * 2))
+  const barColor    = distancePct <= critPct ? '#e0007a' : distancePct <= alertPct ? '#e06000' : '#2ecc00'
 
   return (
     <Card className={`${style.glow} border-l-4`} style={{ borderLeftColor: style.accent }}>
@@ -31,7 +34,7 @@ export default function PerpPositionCard({ position }) {
             </Badge>
           </div>
           <Badge style={{ background: style.accent + '25', color: style.accent, border: 'none' }}>
-            {riskLevel}
+            {effectiveRisk}
           </Badge>
         </div>
       </CardHeader>

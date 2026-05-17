@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge'
 const MOBILE_NAV = [
   { id: 'portfolio', label: 'Portfolio', icon: LayoutDashboard },
   { id: 'rates',     label: 'Rates',     icon: TrendingUp },
-  { id: 'alerts',    label: 'Alerts',    icon: Bell },
+  { id: 'alerts',    label: 'AI History', icon: Bell },
   { id: 'settings',  label: 'Settings',  icon: Settings2 },
 ]
 
